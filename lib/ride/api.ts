@@ -103,6 +103,8 @@ export type RiderProfile = {
 
 export type AppConfig = {
   currency: string;
+  /** The tariff the website shows; `cancellationFee` is what a rider is warned about. */
+  pricing: { cancellationFee: number; shortRideKm: number; shortRideFare: number };
   search: { radiusKm: number; offerSeconds: number; maxSeconds: number };
   cities: {
     id: string;

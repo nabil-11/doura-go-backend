@@ -135,10 +135,10 @@ export function TrackScreen({ copy, common, locale, config, ride, onUpdated }: P
         : t.inProgress;
   const hint = waiting ? t.searchingHint : ride.status === "arriving" ? t.arrivingHint : null;
 
-  const feeAmount =
-    ride.cancellationFee !== null
-      ? formatCurrency(locale, ride.cancellationFee, ride.fare.currency)
-      : null;
+  // A live ride carries no fee of its own — the figure is only written once one
+  // is actually charged — so the warning quotes the tariff the site publishes.
+  const fee = ride.cancellationFee ?? config?.pricing.cancellationFee ?? null;
+  const feeAmount = fee !== null ? formatCurrency(locale, fee, ride.fare.currency) : null;
 
   return (
     <Stage
