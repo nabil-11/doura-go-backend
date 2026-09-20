@@ -10,7 +10,8 @@
     "typecheck": "next typegen && tsc --noEmit",
     "admin:create": "tsx scripts/create-admin.ts",
     "db:seed": "tsx scripts/seed-demo.ts",
-    "api:test": "tsx scripts/api-smoke.ts"
+    "api:test": "tsx scripts/api-smoke.ts",
+    "test:accounts": "tsx scripts/test-accounts.ts"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",

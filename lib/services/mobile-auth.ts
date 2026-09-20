@@ -6,6 +6,7 @@ import { Types } from "mongoose";
 
 import { ApiError } from "@/lib/api/errors";
 import type { MobileAudience } from "@/lib/auth/audience";
+import { testCodeFor } from "@/lib/auth/test-numbers";
 import {
   OTP_MAX_ATTEMPTS,
   OTP_TTL_SECONDS,
@@ -65,7 +66,9 @@ export async function requestOtp(input: {
     if (!exists) throw new ApiError("notRegistered");
   }
 
-  const code = newOtpCode();
+  // A test number always gets the same code, and nothing is sent anywhere.
+  const fixedCode = testCodeFor(phone);
+  const code = fixedCode ?? newOtpCode();
   const expiresAt = new Date(Date.now() + OTP_TTL_SECONDS * 1000);
 
   // One live challenge per number and app: requesting a new code retires the old.
@@ -77,6 +80,10 @@ export async function requestOtp(input: {
     expiresAt,
     requestIp: input.ip ?? null,
   });
+
+  // Whoever set the number up already knows its code, so it is neither sent
+  // nor echoed back — the flow is then identical in every environment.
+  if (fixedCode) return { expiresAt };
 
   const sent = await sendSms(phone, verificationMessage(code));
   if (!sent.delivered && isProduction) throw new ApiError("smsUnavailable");

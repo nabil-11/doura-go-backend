@@ -7,28 +7,25 @@
 
 const NATIVE_ORIGINS = ["capacitor://localhost", "ionic://localhost", "http://localhost", "https://localhost"];
 
-// Vite and the Ionic dev server, so the apps can be developed in a browser.
-const DEV_ORIGINS = [
-  "http://localhost:5173",
-  "http://localhost:8100",
-  "http://localhost:8101",
-  "http://127.0.0.1:5173",
-];
+/**
+ * Any port on this machine, while developing. Vite moves to the next free port
+ * when one is taken — run both apps at once and the second lands on 5174 — so
+ * naming ports here only produces a confusing "can't reach the server" later.
+ */
+const LOCAL_ORIGIN = /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/;
 
-function allowedOrigins() {
-  const configured = (process.env.MOBILE_APP_ORIGINS ?? "")
+function configuredOrigins() {
+  return (process.env.MOBILE_APP_ORIGINS ?? "")
     .split(",")
     .map((origin) => origin.trim())
     .filter(Boolean);
-  return new Set([
-    ...NATIVE_ORIGINS,
-    ...(process.env.NODE_ENV === "production" ? [] : DEV_ORIGINS),
-    ...configured,
-  ]);
 }
 
 export function isAllowedOrigin(origin: string | null): origin is string {
-  return !!origin && allowedOrigins().has(origin);
+  if (!origin) return false;
+  if (NATIVE_ORIGINS.includes(origin)) return true;
+  if (configuredOrigins().includes(origin)) return true;
+  return process.env.NODE_ENV !== "production" && LOCAL_ORIGIN.test(origin);
 }
 
 /**

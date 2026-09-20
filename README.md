@@ -40,6 +40,7 @@ NEXT_PUBLIC_SITE_URL=https://douragoo.tn       # optional: canonical URLs, sitem
 MOBILE_APP_ORIGINS=https://app.douragoo.tn     # optional: extra CORS origins for the apps
 NEXT_PUBLIC_MAP_TILES=https://…/{z}/{x}/{y}.png  # optional: your own map tiles
 SMS_PROVIDER=                                  # unset: codes are logged, not sent
+TEST_PHONE_NUMBERS=+216…:123456                # optional: demo accounts, no SMS
 ```
 
 > **No SMS provider is wired yet.** Outside production the verification code
@@ -68,6 +69,22 @@ npm run db:seed            # add (replaces previous demo data)
 npm run db:seed -- --reset # remove demo data, add nothing
 ```
 
+### Test accounts
+
+Signing in needs an SMS, which is awkward while building the apps and
+impossible for an app-store reviewer in California. Two demo accounts sign in
+with a fixed code and no SMS at all:
+
+```bash
+npm run test:accounts            # create them and print their codes
+npm run test:accounts -- --remove   # delete them
+```
+
+Put the line it prints in `.env` and restart. The numbers are in a range Tunisia
+does not assign, so they can never belong to a real person, and nothing works
+until `TEST_PHONE_NUMBERS` is set — an environment without it has no back door.
+Re-run the command to roll the codes.
+
 ### Scripts
 
 | Command | What it does |
@@ -79,6 +96,7 @@ npm run db:seed -- --reset # remove demo data, add nothing
 | `npm run admin:create` | Create a backoffice account (`--reset` to set a new password) |
 | `npm run db:seed` | Demo data (`--reset` to remove it) |
 | `npm run api:test` | End-to-end check of the mobile API against a running server |
+| `npm run test:accounts` | Demo rider and driver that sign in without SMS (`--remove` to delete) |
 
 ---
 

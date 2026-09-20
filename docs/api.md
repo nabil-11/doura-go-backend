@@ -46,8 +46,10 @@ phone per 15 minutes, 20 per address per hour, 10 ride requests per rider per
 hour, 60 position updates per driver per minute.
 
 **Cross-origin**: the Capacitor origins (`capacitor://localhost`,
-`http://localhost`) are allowed, plus anything listed in `MOBILE_APP_ORIGINS`.
-Tokens are not cookies, so no credentials ride along.
+`http://localhost`) are allowed, plus anything listed in `MOBILE_APP_ORIGINS`, plus
+any localhost port while developing — Vite moves to the next free port when one
+is taken, and a fixed list only produces a confusing "can't reach the server"
+later. Tokens are not cookies, so no credentials ride along.
 
 ---
 
@@ -91,6 +93,21 @@ code is only spent once it has produced a session. Five wrong tries retire it.
 ```
 
 `201` for a new account, `200` for an existing one.
+
+### Test numbers
+
+`TEST_PHONE_NUMBERS` on the server maps phone numbers to fixed codes:
+
+```
+TEST_PHONE_NUMBERS=+21610000001:483920,+21610000002:774615
+```
+
+Those numbers skip SMS entirely and always accept their own code — in every
+environment, production included, which is what makes them usable for an
+app-store review. The code is never returned by `/auth/otp`: whoever configured
+it already knows it. They are also exempt from the per-number rate limit, since
+no message is sent and nobody can be disturbed. `npm run test:accounts` in the
+backend creates a matching rider and driver.
 
 ### `POST /auth/refresh`
 
