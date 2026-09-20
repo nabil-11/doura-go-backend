@@ -97,6 +97,7 @@ export function BalanceCard({
           <PaymentDialog
             driverId={driverId}
             driverName={driverName}
+            cashHeld={balance.cashCollected}
             due={balance.commissionDue}
             currency={balance.currency}
           />

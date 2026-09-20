@@ -99,8 +99,18 @@ export async function recordDriverPayment(
   const driver = await Driver.findById(driverId).select("balance firstName lastName").lean<DriverRecord>();
   if (!driver) return { ok: false, error: "notFound" };
 
-  const dueBefore = round3(driver.balance?.commissionDue ?? 0);
-  const cashBefore = round3(driver.balance?.cashCollected ?? 0);
+  // Read twice over: rounded for arithmetic and for what the operator sees,
+  // raw for the conditional write below.
+  //
+  // A balance built up by repeated $inc drifts — 17.450000000000003 — and the
+  // write pins the balance to catch a concurrent settlement. Pinning it to the
+  // *rounded* figure matches no document at all, so every settlement would
+  // report a conflict that wasn't there and the account could never be
+  // cleared. Round what people read; match on what is stored.
+  const rawDue = driver.balance?.commissionDue ?? 0;
+  const rawCash = driver.balance?.cashCollected ?? 0;
+  const dueBefore = round3(rawDue);
+  const cashBefore = round3(rawCash);
   if (input.expectedDue !== undefined && Math.abs(input.expectedDue - dueBefore) > 0.0005) {
     return { ok: false, error: "balanceChanged" };
   }
@@ -115,9 +125,10 @@ export async function recordDriverPayment(
   const now = new Date();
 
   const updated = await Driver.findOneAndUpdate(
-    // Both numbers are pinned: a ride completing between the read above and
-    // this write would otherwise have its cash silently wiped.
-    { _id: driverId, "balance.commissionDue": dueBefore, "balance.cashCollected": cashBefore },
+    // Both numbers are pinned, exactly as stored: a ride completing between
+    // the read above and this write would otherwise have its cash silently
+    // wiped. Nothing else may have moved them in between.
+    { _id: driverId, "balance.commissionDue": rawDue, "balance.cashCollected": rawCash },
     {
       $set: {
         "balance.commissionDue": dueAfter,

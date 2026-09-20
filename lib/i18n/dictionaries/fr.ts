@@ -603,6 +603,10 @@ const fr: Dictionary = {
         noHistory: "Aucun paiement enregistré.",
         recordedBy: "par {name}",
         leftAfter: "Solde après : {amount}",
+        clearsAccount: "Ce règlement solde le compte et le rouvre.",
+        addDetails: "Ajouter une référence ou une note",
+        staleRefreshed:
+          "Le solde a changé pendant que cette fenêtre était ouverte — une course s'est terminée, ou quelqu'un d'autre l'a réglé. Les montants ci-dessous sont à jour : vérifiez et enregistrez.",
         recorded: "Paiement enregistré.",
         cleared: "Solde réglé. Le compte est rouvert.",
         noLimit: "Aucun plafond n'est défini.",

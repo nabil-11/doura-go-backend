@@ -581,6 +581,10 @@ const en = {
         noHistory: "No payment recorded yet.",
         recordedBy: "by {name}",
         leftAfter: "Balance after: {amount}",
+        clearsAccount: "This settles the balance and reopens the account.",
+        addDetails: "Add a reference or note",
+        staleRefreshed:
+          "The balance moved while this was open — a ride finished, or someone else settled it. The figures below are the current ones; check the amount and record it.",
         recorded: "Payment recorded.",
         cleared: "Balance settled. The account is open again.",
         noLimit: "No credit limit is set.",
