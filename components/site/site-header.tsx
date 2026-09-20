@@ -43,11 +43,20 @@ export function SiteHeader({ dict, locale }: { dict: Dictionary; locale: Locale 
 
         <div className="ms-auto flex items-center gap-1.5">
           <LocaleSwitcher label={dict.common.language} tone="light" />
-          <Button asChild className="hidden h-9 px-4 font-semibold sm:inline-flex">
+          <Button
+            asChild
+            variant="ghost"
+            className="hidden h-9 px-3 font-medium text-white/80 hover:bg-white/10 hover:text-white sm:inline-flex"
+          >
             <Link href={`/${locale}/drive`}>{dict.site.nav.becomeDriver}</Link>
           </Button>
+          {/* Booking is what the site is for, so it is the button that is
+              always there — on a phone too, where the rest folds into a menu. */}
+          <Button asChild className="h-9 px-4 font-semibold">
+            <Link href={`/${locale}/ride`}>{dict.site.nav.bookRide}</Link>
+          </Button>
           <MobileNav
-            items={items}
+            items={[...items, { href: `/${locale}/ride`, label: dict.site.nav.bookRide }]}
             cta={{ href: `/${locale}/drive`, label: dict.site.nav.becomeDriver }}
             labels={{ open: dict.common.openMenu, title: dict.site.nav.primary }}
           />

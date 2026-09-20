@@ -95,6 +95,8 @@ export type SignInResult = {
   tokens: Tokens;
   audience: MobileAudience;
   accountId: string;
+  /** Bumped to sign every device out — a session has to carry it to be revocable. */
+  tokenVersion: number;
   isNewAccount: boolean;
 };
 
@@ -137,7 +139,13 @@ export async function verifyOtp(input: {
     device: input.device ?? null,
   });
 
-  return { tokens, audience: input.audience, accountId: account.id, isNewAccount: account.isNew };
+  return {
+    tokens,
+    audience: input.audience,
+    accountId: account.id,
+    tokenVersion: account.tokenVersion,
+    isNewAccount: account.isNew,
+  };
 }
 
 async function signInRider(phone: string, name: string | undefined) {

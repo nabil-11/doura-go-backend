@@ -27,6 +27,19 @@ export type MapCanvasProps = {
   zoom?: number;
   /** Scroll-wheel zoom is off inside scrolling pages and on for a full map. */
   scrollZoom?: boolean;
+  /**
+   * Choosing a point: a pin sits fixed in the middle and the map moves under
+   * it. Steadier than dragging a marker with a thumb, and it works the same
+   * on a phone and a mouse.
+   */
+  picking?: boolean;
+  /** Called with the middle of the map once it settles, while picking. */
+  onPick?: (point: { lat: number; lng: number }) => void;
+  /**
+   * How much of the map's height is covered by a sheet, 0–1. The frame is
+   * fitted into what is left, so a route is never hidden behind it.
+   */
+  sheetInset?: number;
   className?: string;
   label: string;
 };
@@ -89,12 +102,21 @@ export default function MapCanvas({
   center,
   zoom = 13,
   scrollZoom = false,
+  picking = false,
+  onPick,
+  sheetInset = 0,
   className,
   label,
 }: MapCanvasProps) {
   const container = useRef<HTMLDivElement>(null);
   const map = useRef<L.Map | null>(null);
   const layer = useRef<L.LayerGroup | null>(null);
+  // Held in a ref so a new handler on every render never tears the map down.
+  // Written in an effect rather than during render, which React forbids.
+  const pick = useRef(onPick);
+  useEffect(() => {
+    pick.current = onPick;
+  }, [onPick]);
 
   useEffect(() => {
     if (!container.current || map.current) return;
@@ -111,7 +133,14 @@ export default function MapCanvas({
     layer.current = L.layerGroup().addTo(instance);
     map.current = instance;
 
+    const report = () => {
+      const middle = instance.getCenter();
+      pick.current?.({ lat: middle.lat, lng: middle.lng });
+    };
+    instance.on("moveend", report);
+
     return () => {
+      instance.off("moveend", report);
       instance.remove();
       map.current = null;
       layer.current = null;
@@ -155,6 +184,11 @@ export default function MapCanvas({
       }
     }
 
+    // While a point is being chosen the map belongs to the thumb dragging it.
+    // Re-framing here would fight that, and worse: moving the map fires
+    // `moveend`, which reports a new centre, which would frame it again.
+    if (picking) return;
+
     // Frame whatever there is: several points get a fitted view, one gets
     // centred, none leaves the map where it was. The route counts — a path that
     // loops around a one-way system reaches past both of its pins.
@@ -163,13 +197,20 @@ export default function MapCanvas({
       ...(route ?? []).map((point) => [point.lat, point.lng] as [number, number]),
     ];
     if (points.length > 1) {
-      instance.fitBounds(L.latLngBounds(points), { padding: [48, 48], maxZoom: 15 });
+      // Whatever a sheet covers is not usable space, so the frame is pushed up
+      // out of it rather than drawing the route underneath.
+      const hidden = Math.round(instance.getSize().y * Math.min(0.8, Math.max(0, sheetInset)));
+      instance.fitBounds(L.latLngBounds(points), {
+        paddingTopLeft: [48, 48],
+        paddingBottomRight: [48, 48 + hidden],
+        maxZoom: 15,
+      });
     } else if (points.length === 1) {
       instance.setView(points[0], Math.max(instance.getZoom(), zoom));
     } else if (center) {
       instance.setView([center.lat, center.lng], zoom);
     }
-  }, [markers, route, center, zoom]);
+  }, [markers, route, center, zoom, picking, sheetInset]);
 
   // Leaflet measures its container on creation; a map that starts hidden (a
   // tab, a collapsed card) needs telling once it has a size.
@@ -181,11 +222,17 @@ export default function MapCanvas({
   }, []);
 
   return (
-    <div
-      ref={container}
-      role="img"
-      aria-label={label}
-      className={cn("dg-map z-0 w-full overflow-hidden rounded-xl border", className)}
-    />
+    <div className={cn("dg-map relative isolate z-0 w-full overflow-hidden rounded-xl border", className)}>
+      <div ref={container} role="img" aria-label={label} className="size-full" />
+      {/* The pin the map moves under. Leaflet's own panes run to z-index 700,
+          so this has to sit above them — and `isolate` on the wrapper keeps
+          that number from reaching anything outside the map. */}
+      {picking ? (
+        <span
+          aria-hidden="true"
+          className="pointer-events-none absolute start-1/2 top-1/2 z-[800] -ms-3.5 -mt-7 size-7 rounded-full rounded-bl-none border-[3px] border-white bg-brand shadow-lg [rotate:-45deg] after:absolute after:inset-1.5 after:rounded-full after:bg-asphalt after:content-['']"
+        />
+      ) : null}
+    </div>
   );
 }

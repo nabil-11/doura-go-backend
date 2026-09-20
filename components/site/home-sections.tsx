@@ -398,6 +398,17 @@ export function AppCta({ dict, locale }: SectionProps) {
         <div className="relative">
           <h2 className="mx-auto max-w-2xl text-3xl leading-tight font-bold tracking-tight sm:text-4xl">{t.title}</h2>
           <p className="mx-auto mt-4 max-w-xl text-base text-white/65 sm:text-lg">{t.subtitle}</p>
+
+          {/* The app is still on its way; the browser is not. Booking here
+              works today, so it goes above the badges rather than beneath. */}
+          <Button asChild className="mt-8 h-12 px-6 text-base font-semibold">
+            <Link href={`/${locale}/ride`}>
+              {t.webRide}
+              <ArrowRightIcon className="rtl:rotate-180" />
+            </Link>
+          </Button>
+          <p className="mt-3 text-sm text-white/55">{t.webRideHint}</p>
+
           <div className="mt-9 flex flex-col items-center justify-center gap-3 sm:flex-row">
             <div className="flex min-w-48 items-center gap-3 rounded-xl border border-white/15 bg-black/40 px-4 py-2.5 text-start">
               <SmartphoneIcon className="size-6 text-white/80" aria-hidden="true" />

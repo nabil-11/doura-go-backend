@@ -5,6 +5,7 @@ import type { NextRequest } from "next/server";
 import type { z } from "zod";
 
 import { bearerToken, verifyAccessToken } from "@/lib/auth/mobile-token";
+import { RIDER_COOKIE, verifyRiderSession } from "@/lib/auth/rider-session";
 import { connectToDatabase } from "@/lib/db/connect";
 import { Driver, type DriverRecord } from "@/lib/db/models/driver";
 import { Rider, type RiderRecord } from "@/lib/db/models/rider";
@@ -81,12 +82,30 @@ export type DriverPrincipal = { audience: "driver"; id: string; driver: DriverRe
 export type Principal = RiderPrincipal | DriverPrincipal;
 
 /**
- * The account behind a bearer token, re-read from the database on every
- * request: a blocked rider or a signed-out device loses access immediately,
- * without waiting for the access token to expire.
+ * The rider named by the website's session cookie, in the shape a bearer token
+ * would have produced. Always a rider: there is no web driver app, and issuing
+ * a driver principal from a cookie is not a door worth opening.
+ */
+async function webRiderPrincipal(request: NextRequest) {
+  const session = await verifyRiderSession(request.cookies.get(RIDER_COOKIE)?.value);
+  return session ? { audience: "rider" as const, id: session.sub, ver: session.ver } : null;
+}
+
+/**
+ * The account behind the request, re-read from the database every time: a
+ * blocked rider or a signed-out device loses access immediately, without
+ * waiting for a token to expire.
+ *
+ * Two ways in, for two kinds of client. The phone apps send a bearer token.
+ * The website has nowhere safe to keep one, so it sends an httpOnly cookie
+ * instead and never touches a token at all — that cookie can only ever name a
+ * rider, so a driver endpoint refuses it on the audience check below.
  */
 export async function authenticate(request: NextRequest): Promise<Principal> {
-  const principal = await verifyAccessToken(bearerToken(request.headers.get("authorization")));
+  const header = request.headers.get("authorization");
+  const principal = header
+    ? await verifyAccessToken(bearerToken(header))
+    : await webRiderPrincipal(request);
   if (!principal || !isValidObjectId(principal.id)) throw new ApiError("unauthorized");
 
   await connectToDatabase();
