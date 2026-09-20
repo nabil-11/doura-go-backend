@@ -2,6 +2,7 @@ import "server-only";
 
 import type { Types } from "mongoose";
 
+import { zoneCityIds } from "@/lib/config/site";
 import { connectToDatabase } from "@/lib/db/connect";
 import { Driver, type DriverRecord } from "@/lib/db/models/driver";
 import { Ride, type RideRecord } from "@/lib/db/models/ride";
@@ -26,7 +27,10 @@ async function findCandidates(ride: RideRecord, limit: number) {
   const drivers = await Driver.find({
     status: "active",
     availability: "online",
-    city: ride.city,
+    // The whole conurbation, not the one municipality the pickup happens to
+    // sit in: the nearest moto to a rider in La Marsa is often registered in
+    // Tunis. Distance is what filters here, and $near below already does it.
+    city: { $in: zoneCityIds(ride.city) },
     lastSeenAt: { $gte: heartbeatCutoff() },
     ...(declined.length ? { _id: { $nin: declined } } : {}),
     location: {

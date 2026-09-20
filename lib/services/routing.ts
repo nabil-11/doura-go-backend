@@ -23,7 +23,9 @@ import { estimateRoute, type LatLng } from "@/lib/domain/geo";
  */
 
 const OSRM_URL = process.env.ROUTING_URL ?? "https://router.project-osrm.org";
-const TIMEOUT_MS = 4000;
+// A rider is waiting on this for a price, so the budget is short — but not so
+// short that a cold function's first DNS and TLS handshake spends it all.
+const TIMEOUT_MS = 6000;
 
 function googleKey() {
   return process.env.GOOGLE_MAPS_API_KEY?.trim() || null;
@@ -96,7 +98,7 @@ async function googleRoute(from: LatLng, to: LatLng): Promise<Route | null> {
         destination: { location: { latLng: { latitude: to.lat, longitude: to.lng } } },
         travelMode: "TWO_WHEELER",
         routingPreference: "TRAFFIC_AWARE",
-        polylineQuality: "OVERVIEW",
+        polylineQuality: "HIGH_QUALITY",
         languageCode: "fr",
         regionCode: "TN",
       }),
@@ -115,7 +117,7 @@ async function googleRoute(from: LatLng, to: LatLng): Promise<Route | null> {
     return {
       distanceKm: Math.round((best.distanceMeters / 1000) * 100) / 100,
       durationMin: Math.max(1, Math.round(seconds / 60)),
-      geometry: decodePolyline(best.polyline?.encodedPolyline ?? ""),
+      geometry: thin(decodePolyline(best.polyline?.encodedPolyline ?? "")),
       source: "google",
     };
   } catch {
@@ -161,12 +163,14 @@ type OsrmResponse = {
 };
 
 async function osrmRoute(from: LatLng, to: LatLng): Promise<Route | null> {
-  // OSRM wants longitude first. `simplified` keeps the path drawable without
-  // carrying every kerb; `geojson` avoids decoding a polyline by hand.
+  // OSRM wants longitude first. `full` is the geometry as routed: `simplified`
+  // drops so much that consecutive points sit a kilometre apart, and the line
+  // drawn through them cuts across blocks instead of following the street.
+  // It is thinned back down on the way out, by shape rather than by budget.
   const url =
     `${OSRM_URL}/route/v1/driving/` +
     `${from.lng},${from.lat};${to.lng},${to.lat}` +
-    `?overview=simplified&geometries=geojson&alternatives=false&steps=false`;
+    `?overview=full&geometries=geojson&alternatives=false&steps=false`;
 
   try {
     const response = await fetch(url, {
@@ -183,13 +187,81 @@ async function osrmRoute(from: LatLng, to: LatLng): Promise<Route | null> {
     return {
       distanceKm: Math.round((best.distance / 1000) * 100) / 100,
       durationMin: Math.max(1, Math.round(best.duration / 60)),
-      geometry: (best.geometry?.coordinates ?? []).map(([lng, lat]) => ({ lat, lng })),
+      geometry: thin((best.geometry?.coordinates ?? []).map(([lng, lat]) => ({ lat, lng }))),
       source: "osrm",
     };
   } catch {
     // Timeout, DNS, a provider having a bad day — the estimate carries it.
     return null;
   }
+}
+
+// ------------------------------------------------------------------ shape ---
+
+/** How far a dropped point may sit from the line kept in its place, in metres. */
+const THIN_TOLERANCE_M = 6;
+
+/** Degrees of latitude are the same length everywhere; longitude is not. */
+const M_PER_DEG_LAT = 111_320;
+
+/**
+ * Douglas–Peucker: keep the points that carry the shape, drop the ones that sit
+ * on a line between their neighbours.
+ *
+ * A routed path repeats itself — a straight avenue arrives as dozens of points
+ * along one line — and every one of them is paid for twice, once in the ride
+ * document and once over a phone's data connection. Thinning by *shape* rather
+ * than by a point budget is what keeps the corners: at six metres the drawn
+ * line still lies on the street at full zoom.
+ */
+function thin(points: LatLng[], toleranceM = THIN_TOLERANCE_M): LatLng[] {
+  if (points.length <= 2) return points.map(round5);
+
+  const keep = new Uint8Array(points.length);
+  keep[0] = 1;
+  keep[points.length - 1] = 1;
+
+  // Iterative rather than recursive: a long route is thousands of points, and
+  // the stack is not the place to find that out.
+  const pending: [number, number][] = [[0, points.length - 1]];
+  while (pending.length) {
+    const [first, last] = pending.pop()!;
+    let farthest = toleranceM;
+    let at = -1;
+    for (let i = first + 1; i < last; i += 1) {
+      const distance = perpendicularM(points[i], points[first], points[last]);
+      if (distance > farthest) {
+        farthest = distance;
+        at = i;
+      }
+    }
+    if (at === -1) continue; // The whole span is within tolerance of its chord.
+    keep[at] = 1;
+    pending.push([first, at], [at, last]);
+  }
+
+  return points.filter((_, index) => keep[index]).map(round5);
+}
+
+/** Five decimals is about a metre — more than a map pixel ever shows. */
+function round5(point: LatLng): LatLng {
+  return { lat: Math.round(point.lat * 1e5) / 1e5, lng: Math.round(point.lng * 1e5) / 1e5 };
+}
+
+/** Distance from a point to the segment a–b, in metres. */
+function perpendicularM(point: LatLng, a: LatLng, b: LatLng) {
+  const mPerLng = M_PER_DEG_LAT * Math.cos((a.lat * Math.PI) / 180);
+  const x = (point.lng - a.lng) * mPerLng;
+  const y = (point.lat - a.lat) * M_PER_DEG_LAT;
+  const bx = (b.lng - a.lng) * mPerLng;
+  const by = (b.lat - a.lat) * M_PER_DEG_LAT;
+
+  const length2 = bx * bx + by * by;
+  if (length2 === 0) return Math.hypot(x, y);
+  // Clamped, so a point past either end measures to that end rather than to
+  // the infinite line running through them.
+  const t = Math.max(0, Math.min(1, (x * bx + y * by) / length2));
+  return Math.hypot(x - t * bx, y - t * by);
 }
 
 function fallback(from: LatLng, to: LatLng): Route {

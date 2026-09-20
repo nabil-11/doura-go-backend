@@ -27,6 +27,29 @@ export function haversineKm(a: LatLng, b: LatLng) {
 }
 
 /**
+ * Whether a point falls inside a polygon, by ray casting: count the edges a ray
+ * heading east crosses, and an odd count means inside.
+ *
+ * A service area is a shape, not a circle. Greater Tunis runs from Raoued down
+ * to Hammam Lif and out to Manouba, and no disc covers that without also
+ * covering half the Gulf — so the boundary is drawn, and tested here. At city
+ * scale the earth is flat enough to treat lat/lng as plain coordinates.
+ */
+export function pointInPolygon(point: LatLng, polygon: readonly LatLng[]) {
+  let inside = false;
+  for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i, i += 1) {
+    const a = polygon[i];
+    const b = polygon[j];
+    // Does this edge straddle the ray's latitude? One end strictly above and
+    // one not, so a vertex on the line is counted once rather than twice.
+    if (a.lat > point.lat === b.lat > point.lat) continue;
+    const crossingLng = a.lng + ((point.lat - a.lat) / (b.lat - a.lat)) * (b.lng - a.lng);
+    if (point.lng < crossingLng) inside = !inside;
+  }
+  return inside;
+}
+
+/**
  * Streets are longer than straight lines: a detour factor turns the great-circle
  * distance into a usable road estimate. 1.3–1.4 is the usual range for a dense
  * city grid.
