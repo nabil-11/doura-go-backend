@@ -187,6 +187,11 @@ long a search lasts. Fetch it at launch; it is the same data the website shows.
 Nothing is written, so it can be called while the rider drags a pin. A pickup
 outside a city that is open returns `422 outsideServiceArea`.
 
+The distance and duration are the real ones, routed along streets, and `route`
+carries that path so the app can draw it. `fare.flat` is true when the ride was
+short enough for the fixed short-ride price rather than the meter — say so in
+the app, since it is the reason the number stops moving as the pin is nudged.
+
 ```json
 {
   "estimate": {

@@ -42,14 +42,30 @@ GOOGLE_MAPS_API_KEY=                           # optional: switches maps, routes
 ROUTING_URL=https://router.project-osrm.org    # optional: your own OSRM
 GEOCODER_URL=https://nominatim.openstreetmap.org  # optional: your own Nominatim
 NEXT_PUBLIC_MAP_TILES=https://…/{z}/{x}/{y}.png  # optional: your own map tiles
-SMS_PROVIDER=                                  # unset: codes are logged, not sent
+SMS_PROVIDER=                                  # twilio | http — unset: codes are logged, not sent
 TEST_PHONE_NUMBERS=+216…:123456                # optional: demo accounts, no SMS
 ```
 
-> **No SMS provider is wired yet.** Outside production the verification code
-> comes back in the API response so the apps can be built against a real server;
-> in production, sign-in fails loudly until you implement one branch in
-> `lib/notifications/sms.ts`.
+> **Sign-in needs an SMS provider.** Without one the verification code is
+> logged, and outside production it also comes back in the API response so the
+> apps can be built against a real server — but nobody with a real phone can
+> sign in. Two are implemented; pick one and fill in its variables:
+>
+> ```bash
+> SMS_PROVIDER=twilio
+> TWILIO_ACCOUNT_SID=AC…
+> TWILIO_AUTH_TOKEN=…
+> TWILIO_SENDER=+1…            # a number you own, or an approved sender id
+>
+> # …or a Tunisian aggregator with a JSON endpoint
+> SMS_PROVIDER=http
+> SMS_ENDPOINT=https://…/send
+> SMS_API_KEY=…
+> ```
+>
+> Twilio is the fastest way to be sending for real; a local aggregator is
+> usually cheaper per message once volume arrives. Either way, the only message
+> the platform sends is the verification code.
 
 Generate a new `JWT_SECRET` at any time (this invalidates existing sessions):
 
@@ -230,9 +246,16 @@ missing or extra key is a compile error. Server actions return message *codes*,
 never sentences, and the UI translates them. Dates, numbers and money use `Intl`
 with the `Africa/Tunis` time zone and a 24-hour clock.
 
-**Fares.** `lib/domain/pricing.ts` prices every ride: base + distance + time, with a
-minimum fare, a booking fee, and a commission split. Amounts are rounded up to
+**Fares.** `lib/domain/pricing.ts` prices every ride: base + distance + time, with
+a minimum fare, a booking fee, and a commission split. Amounts are rounded up to
 0.100 TND. The pricing page previews the result live before saving.
+
+Short rides skip the meter: anything up to `shortRideKm` costs `shortRideFare`,
+all in — no booking fee on top and no minimum to apply, because it already is
+the minimum. A hop across the neighbourhood is easier to sell as one number
+than as a sum, and it is the price riders will repeat to each other. Set the
+distance to 0 to meter everything. Keep the flat price near what the meter
+would charge at that distance so the curve has no cliff in it.
 
 **Money and dates.** Dinars are stored as numbers with 3 decimals (millimes).
 Dashboard tiles round to whole dinars; detail pages show the exact amount.
