@@ -28,6 +28,8 @@ function pick(record: PricingRecord): PricingValues {
     bookingFee: record.bookingFee,
     commissionRate: record.commissionRate,
     cancellationFee: record.cancellationFee,
+    shortRideKm: record.shortRideKm ?? DEFAULT_PRICING.shortRideKm,
+    shortRideFare: record.shortRideFare ?? DEFAULT_PRICING.shortRideFare,
     commissionCreditLimit: record.commissionCreditLimit ?? DEFAULT_PRICING.commissionCreditLimit,
   };
 }

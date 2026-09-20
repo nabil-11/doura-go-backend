@@ -17,6 +17,7 @@ import { idleState, resolveMessage, type ActionState } from "@/lib/validation/co
 type NumericKey = Exclude<keyof PricingValues, "currency">;
 
 const TRIPS = [
+  { id: "hop", distance: 1.5, duration: 5 },
   { id: "short", distance: 3, duration: 9 },
   { id: "typical", distance: 6, duration: 16 },
   { id: "long", distance: 12, duration: 28 },
@@ -90,6 +91,16 @@ export function PricingForm({ initial, canEdit }: { initial: PricingValues; canE
         </Card>
         <Card>
           <CardHeader className="border-b">
+            <CardTitle>{t.shortRideSection}</CardTitle>
+            <CardDescription>{t.shortRideHint}</CardDescription>
+          </CardHeader>
+          <CardContent className="grid gap-5 sm:grid-cols-2">
+            {field("shortRideKm", t.shortRideKm, "km", "0.5")}
+            {field("shortRideFare", t.shortRideFare, currency, "0.1")}
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="border-b">
             <CardTitle>{t.commissionSection}</CardTitle>
             <CardDescription>{t.commissionHint}</CardDescription>
           </CardHeader>
@@ -154,6 +165,11 @@ export function PricingForm({ initial, canEdit }: { initial: PricingValues; canE
           <div>
             <p className="text-sm text-white/60">{t.preview.riderPays}</p>
             <p className="mt-1 text-4xl font-bold text-brand">{money(fare.total)}</p>
+            {fare.flat ? (
+              <p className="mt-1 inline-flex rounded-md bg-brand/15 px-2 py-0.5 text-xs font-medium text-brand">
+                {t.shortRideFlat}
+              </p>
+            ) : null}
           </div>
           <Separator className="bg-white/10" />
           <dl className="space-y-2 text-sm">

@@ -24,6 +24,9 @@ export const GET = apiRoute(async () => {
       minimumFare: values.minimumFare,
       bookingFee: values.bookingFee,
       cancellationFee: values.cancellationFee,
+      /** Rides up to shortRideKm cost shortRideFare, all in. 0 km turns it off. */
+      shortRideKm: values.shortRideKm,
+      shortRideFare: values.shortRideFare,
       updatedAt,
     },
     /** Which geocoder is answering /geo/* — "google" or "osm". */

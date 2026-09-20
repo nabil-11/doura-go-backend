@@ -783,6 +783,12 @@ const en = {
       bookingFee: "Booking fee",
       commissionRate: "Platform commission (%)",
       cancellationFee: "Cancellation fee",
+      shortRideSection: "Short rides",
+      shortRideHint:
+        "A hop across the neighbourhood is easier to sell as one number than as a sum. Rides up to this distance cost the fixed price — nothing added, no minimum applied. Set the distance to 0 to meter every ride.",
+      shortRideKm: "Up to",
+      shortRideFare: "Fixed price",
+      shortRideFlat: "Fixed short-ride price",
       creditSection: "Commission owed by drivers",
       creditHint:
         "Riders pay in cash, so drivers keep the fare and owe Doura Go its commission. Once a driver reaches this limit their account stops taking rides until they settle at the office.",

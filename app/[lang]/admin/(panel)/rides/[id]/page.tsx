@@ -132,18 +132,26 @@ export default async function RidePage({ params }: PageProps<"/[lang]/admin/ride
               <CardTitle>{t.fare}</CardTitle>
             </CardHeader>
             <CardContent className="space-y-2.5 text-sm">
-              <Row label={t.base} value={money(ride.fare.base)} />
-              <Row
-                label={interpolate(t.distance, {
-                  value: interpolate(dict.common.kilometersShort, { count: formatNumber(locale, ride.distanceKm, { maximumFractionDigits: 1 }) }),
-                })}
-                value={money(ride.fare.distance)}
-              />
-              <Row
-                label={interpolate(t.time, { value: interpolate(dict.common.minutesShort, { count: formatNumber(locale, ride.durationMin) }) })}
-                value={money(ride.fare.time)}
-              />
-              <Row label={t.bookingFee} value={money(ride.fare.bookingFee)} />
+              {/* A flat short-ride fare has no parts to break down; showing
+                  rows of zero would only invite the question. */}
+              {ride.fare.flat ? (
+                <Row label={dict.admin.pricing.shortRideFlat} value={money(ride.fare.total)} />
+              ) : (
+                <>
+                  <Row label={t.base} value={money(ride.fare.base)} />
+                  <Row
+                    label={interpolate(t.distance, {
+                      value: interpolate(dict.common.kilometersShort, { count: formatNumber(locale, ride.distanceKm, { maximumFractionDigits: 1 }) }),
+                    })}
+                    value={money(ride.fare.distance)}
+                  />
+                  <Row
+                    label={interpolate(t.time, { value: interpolate(dict.common.minutesShort, { count: formatNumber(locale, ride.durationMin) }) })}
+                    value={money(ride.fare.time)}
+                  />
+                  <Row label={t.bookingFee} value={money(ride.fare.bookingFee)} />
+                </>
+              )}
               <Separator />
               <Row label={t.total} value={money(ride.fare.total)} strong />
               <Row label={t.commission} value={money(ride.fare.commission)} muted />

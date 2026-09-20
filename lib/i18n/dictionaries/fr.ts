@@ -805,6 +805,12 @@ const fr: Dictionary = {
       bookingFee: "Frais de réservation",
       commissionRate: "Commission de la plateforme (%)",
       cancellationFee: "Frais d'annulation",
+      shortRideSection: "Courses courtes",
+      shortRideHint:
+        "Un trajet de quartier se vend mieux comme un prix unique que comme une addition. Les courses jusqu'à cette distance coûtent le prix fixe — rien en plus, pas de minimum appliqué. Mettez 0 pour toutes les compter au compteur.",
+      shortRideKm: "Jusqu'à",
+      shortRideFare: "Prix fixe",
+      shortRideFlat: "Prix fixe course courte",
       creditSection: "Commission due par les chauffeurs",
       creditHint:
         "Les passagers paient en espèces : le chauffeur garde la course et doit sa commission à Doura Go. Dès qu'il atteint ce plafond, son compte n'accepte plus de course jusqu'au règlement à l'agence.",

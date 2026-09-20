@@ -12,6 +12,13 @@ export type PricingValues = {
   commissionRate: number;
   cancellationFee: number;
   /**
+   * Rides no longer than this are charged one fixed price instead of being
+   * metered. Set it to 0 to meter every ride.
+   */
+  shortRideKm: number;
+  /** What a short ride costs, all in — no booking fee on top. */
+  shortRideFare: number;
+  /**
    * How much commission a driver may owe before their account stops taking
    * rides. Riders pay in cash, so the driver keeps the whole fare and the
    * commission builds up as a debt; this is the ceiling on that debt. Set it
@@ -30,6 +37,8 @@ export const DEFAULT_PRICING: PricingValues = {
   bookingFee: 0.2,
   commissionRate: 15,
   cancellationFee: 1,
+  shortRideKm: 2,
+  shortRideFare: 2.5,
   commissionCreditLimit: 150,
 };
 
@@ -56,9 +65,30 @@ export type FareBreakdown = {
   commission: number;
   driverEarnings: number;
   currency: string;
+  /** True when the short-ride price was charged instead of the meter. */
+  flat?: boolean;
 };
 
 export function estimateFare(pricing: PricingValues, distanceKm: number, durationMin: number): FareBreakdown {
+  // A hop across the neighbourhood is priced as one number, not as a sum a
+  // rider has to work out. It is the whole fare: no booking fee on top, and no
+  // minimum to apply, because it already is the minimum.
+  if (pricing.shortRideKm > 0 && Math.max(0, distanceKm) <= pricing.shortRideKm) {
+    const total = roundUp(pricing.shortRideFare, FARE_ROUNDING_STEP);
+    const commission = round3((total * pricing.commissionRate) / 100);
+    return {
+      base: total,
+      distance: 0,
+      time: 0,
+      bookingFee: 0,
+      total,
+      commission,
+      driverEarnings: round3(total - commission),
+      currency: pricing.currency,
+      flat: true,
+    };
+  }
+
   const base = pricing.baseFare;
   const distance = round3(Math.max(0, distanceKm) * pricing.perKm);
   const time = round3(Math.max(0, durationMin) * pricing.perMinute);
@@ -74,6 +104,7 @@ export function estimateFare(pricing: PricingValues, distanceKm: number, duratio
     commission,
     driverEarnings: round3(total - commission),
     currency: pricing.currency,
+    flat: false,
   };
 }
 

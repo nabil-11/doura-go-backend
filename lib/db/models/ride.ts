@@ -43,6 +43,8 @@ export interface RideRecord {
     commission: number;
     driverEarnings: number;
     currency: string;
+    /** True when the short-ride price was charged instead of the meter. */
+    flat?: boolean;
   };
   paymentMethod: PaymentMethod;
   requestedAt: Date;
@@ -101,6 +103,7 @@ const rideSchema = new Schema<RideRecord>(
       commission: { type: Number, required: true },
       driverEarnings: { type: Number, required: true },
       currency: { type: String, required: true, default: "TND" },
+      flat: { type: Boolean, default: undefined },
     },
     paymentMethod: { type: String, enum: PAYMENT_METHODS, default: "cash" },
     requestedAt: { type: Date, required: true },

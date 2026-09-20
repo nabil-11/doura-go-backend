@@ -41,6 +41,8 @@ export const PRICING_FIELDS = [
   "bookingFee",
   "commissionRate",
   "cancellationFee",
+  "shortRideKm",
+  "shortRideFare",
   "commissionCreditLimit",
 ] as const;
 
@@ -52,5 +54,7 @@ export const pricingSchema = z.object({
   bookingFee: money(),
   commissionRate: money(100),
   cancellationFee: money(),
+  shortRideKm: money(50),
+  shortRideFare: money(),
   commissionCreditLimit: money(10_000),
 });
