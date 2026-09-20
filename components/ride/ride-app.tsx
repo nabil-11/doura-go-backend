@@ -86,8 +86,11 @@ export function RideApp({ copy, common, locale }: { copy: RideCopy; common: Comm
     }
   }, [apply, copy]);
 
+  // Queued rather than called outright: an effect body should not itself cause
+  // a render, and everything `boot` sets arrives with a network answer anyway.
   useEffect(() => {
-    void boot();
+    const timer = window.setTimeout(() => void boot(), 0);
+    return () => window.clearTimeout(timer);
   }, [boot]);
 
   /** Re-reads the account after a sign-in, or when a screen falls behind. */
