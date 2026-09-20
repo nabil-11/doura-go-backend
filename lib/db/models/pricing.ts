@@ -23,6 +23,7 @@ const pricingSchema = new Schema<PricingRecord>(
     minimumFare: money,
     bookingFee: money,
     commissionRate: { type: Number, required: true, min: 0, max: 100 },
+    commissionCreditLimit: { type: Number, required: true, min: 0, max: 10_000, default: DEFAULT_PRICING.commissionCreditLimit },
     cancellationFee: money,
     updatedBy: { type: Schema.Types.ObjectId, ref: "Admin", default: null },
   },

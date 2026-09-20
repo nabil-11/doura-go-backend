@@ -7,6 +7,7 @@ import { connectToDatabase } from "@/lib/db/connect";
 import { Driver, type DriverRecord } from "@/lib/db/models/driver";
 import { Ride, type RideRecord } from "@/lib/db/models/ride";
 import { Rider, type RiderRecord } from "@/lib/db/models/rider";
+import { fromGeoPoint, type LatLng } from "@/lib/domain/geo";
 import { ONGOING_RIDE_STATUSES, type RideFilter, type RideStatus } from "@/lib/domain/ride";
 import { APP_TIME_ZONE, DEFAULT_CURRENCY } from "@/lib/i18n/format";
 import { addDays, lastDayKeys, startOfDay, startOfMonth } from "@/lib/time";
@@ -31,6 +32,8 @@ export type RideListItem = {
 
 export type RideDetail = RideListItem & {
   city: string;
+  pickupPoint: LatLng | null;
+  dropoffPoint: LatLng | null;
   distanceKm: number;
   durationMin: number;
   fare: RideRecord["fare"];
@@ -139,6 +142,8 @@ export async function getRide(id: string): Promise<RideDetail | null> {
   return {
     ...toListItem(ride, people),
     city: ride.city,
+    pickupPoint: fromGeoPoint(ride.pickup.location),
+    dropoffPoint: fromGeoPoint(ride.dropoff.location),
     distanceKm: ride.distanceKm,
     durationMin: ride.durationMin,
     fare: ride.fare,

@@ -45,7 +45,17 @@ export interface RideRecord {
   cancelledAt?: Date | null;
   cancelledBy?: CancelledBy | null;
   cancellationReason?: string | null;
+  /** Charged when a rider calls off a ride a driver is already riding to. */
+  cancellationFee?: number | null;
   riderRating?: number | null;
+  /** Who is being offered this ride right now (see lib/services/dispatch.ts). */
+  dispatch?: {
+    round: number;
+    candidates: Types.ObjectId[];
+    declinedBy: Types.ObjectId[];
+    offeredAt?: Date | null;
+    expiresAt?: Date | null;
+  } | null;
   isDemo?: boolean;
   createdAt: Date;
   updatedAt: Date;
@@ -88,7 +98,15 @@ const rideSchema = new Schema<RideRecord>(
     cancelledAt: { type: Date, default: null },
     cancelledBy: { type: String, enum: [...CANCELLED_BY, null], default: null },
     cancellationReason: { type: String, trim: true, maxlength: 300, default: null },
+    cancellationFee: { type: Number, min: 0, default: null },
     riderRating: { type: Number, min: 1, max: 5, default: null },
+    dispatch: {
+      round: { type: Number, default: 0, min: 0 },
+      candidates: { type: [Schema.Types.ObjectId], ref: "Driver", default: undefined },
+      declinedBy: { type: [Schema.Types.ObjectId], ref: "Driver", default: undefined },
+      offeredAt: { type: Date, default: null },
+      expiresAt: { type: Date, default: null },
+    },
     isDemo: { type: Boolean, default: undefined },
   },
   { timestamps: true },
@@ -97,6 +115,9 @@ const rideSchema = new Schema<RideRecord>(
 rideSchema.index({ status: 1, requestedAt: -1 });
 rideSchema.index({ requestedAt: -1 });
 rideSchema.index({ completedAt: -1 });
+rideSchema.index({ rider: 1, status: 1 });
+// Serves "which rides am I being offered": status + candidate + expiry.
+rideSchema.index({ status: 1, "dispatch.candidates": 1, "dispatch.expiresAt": 1 });
 
 export const Ride: Model<RideRecord> =
   (models.Ride as Model<RideRecord> | undefined) ?? model<RideRecord>("Ride", rideSchema);

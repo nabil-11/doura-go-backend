@@ -2,8 +2,10 @@ import { z } from "zod";
 
 import { cityIds } from "@/lib/config/site";
 import { DRIVER_ACTION_NAMES, VEHICLE_TYPES, ageFrom, type DriverAction } from "@/lib/domain/driver";
+import { PAYMENT_CHANNELS } from "@/lib/domain/pricing";
 
 import {
+  money,
   optionalDate,
   optionalEmail,
   optionalPlate,
@@ -108,3 +110,17 @@ export const statusChangeSchema = z.object({
 export const noteSchema = z.object({
   note: requiredText(1000),
 });
+
+export const PAYMENT_FIELDS = ["amount", "channel", "reference", "note", "expectedDue"] as const;
+
+/** Recording a commission settlement from the driver's page. */
+export const paymentSchema = z.object({
+  amount: money(10_000).refine((value) => value > 0, { error: "outOfRange" }),
+  channel: z.enum(PAYMENT_CHANNELS, { error: "invalidChoice" }),
+  reference: optionalText(60),
+  note: optionalText(300),
+  /** What the form was showing, so a stale page can't subtract twice. */
+  expectedDue: money(100_000),
+});
+
+export type PaymentInputValues = z.infer<typeof paymentSchema>;

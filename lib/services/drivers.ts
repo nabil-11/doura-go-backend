@@ -20,6 +20,8 @@ import {
   type DriverStatus,
   type VehicleType,
 } from "@/lib/domain/driver";
+import { fromGeoPoint, type LatLng } from "@/lib/domain/geo";
+import { readBalance, type DriverBalance } from "@/lib/domain/pricing";
 import { avatarUrl, deleteStoredFile, isStorageConfigured, uploadDriverFile } from "@/lib/storage/cloudinary";
 import type { ErrorCode, FieldErrors } from "@/lib/validation/common";
 import type { ApplicationInput, CreateDriverInput, DriverInput } from "@/lib/validation/driver";
@@ -68,6 +70,9 @@ export type DriverDetail = DriverListItem & {
   vehicle: DriverListItem["vehicle"] & { year: number | null; color: string | null };
   documents: Partial<Record<DocumentKind, DriverDocumentInfo>>;
   stats: { completedRides: number; earnings: number };
+  balance: DriverBalance;
+  /** Last position reported by the driver app, if they have ever been online. */
+  location: LatLng | null;
   lastSeenAt: Date | null;
   approvedAt: Date | null;
   review: { at: Date | null; reason: string | null } | null;
@@ -134,6 +139,8 @@ function toDetail(driver: DriverRecord): DriverDetail {
       completedRides: driver.stats?.completedRides ?? 0,
       earnings: driver.stats?.earnings ?? 0,
     },
+    balance: readBalance(driver.balance),
+    location: fromGeoPoint(driver.location),
     lastSeenAt: driver.lastSeenAt ?? null,
     approvedAt: driver.approvedAt ?? null,
     review: driver.review ? { at: driver.review.at ?? null, reason: driver.review.reason ?? null } : null,

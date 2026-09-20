@@ -1,5 +1,6 @@
 import {
   BanIcon,
+  BanknoteIcon,
   CircleCheckIcon,
   CirclePauseIcon,
   CircleXIcon,
@@ -38,6 +39,7 @@ const icons: Record<ActivityAction, { icon: LucideIcon; tone: string }> = {
   "driver.deleted": { icon: Trash2Icon, tone: "bg-status-critical/12 text-[#a82424] dark:text-[#ffa3a3]" },
   "driver.document_uploaded": { icon: UploadIcon, tone: "bg-muted text-foreground" },
   "driver.note_added": { icon: StickyNoteIcon, tone: "bg-muted text-foreground" },
+  "driver.payment_recorded": { icon: BanknoteIcon, tone: "bg-status-good/15 text-[#0a6b0a] dark:text-[#8ae68a]" },
   "rider.blocked": { icon: BanIcon, tone: "bg-status-critical/12 text-[#a82424] dark:text-[#ffa3a3]" },
   "rider.unblocked": { icon: UserCheckIcon, tone: "bg-muted text-foreground" },
   "pricing.updated": { icon: TagsIcon, tone: "bg-muted text-foreground" },

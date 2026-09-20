@@ -168,7 +168,7 @@ function ApplicationForm({ copy, vehicleTypes, messages, cities, onRestart }: Pr
             label={copy.plateNumber}
             placeholder={copy.plateNumberPlaceholder}
             dir="auto"
-            className="uppercase"
+            className="uppercase placeholder:normal-case"
             error={error("plateNumber")}
           />
           <TextField

@@ -6,6 +6,7 @@ import {
   LayoutDashboardIcon,
   LogOutIcon,
   MotorbikeIcon,
+  RadarIcon,
   RouteIcon,
   ShieldUserIcon,
   TagsIcon,
@@ -37,7 +38,6 @@ import {
   SidebarGroupLabel,
   SidebarHeader,
   SidebarMenu,
-  SidebarMenuBadge,
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarRail,
@@ -48,9 +48,10 @@ import { logoutAction } from "@/lib/actions/auth";
 import { can, type AdminRole, type Permission } from "@/lib/auth/roles";
 import { localeMeta } from "@/lib/i18n/config";
 import { formatNumber, initials } from "@/lib/i18n/format";
+import { cn } from "@/lib/utils";
 
 type NavItem = {
-  key: "overview" | "drivers" | "riders" | "rides" | "pricing" | "team";
+  key: "overview" | "drivers" | "riders" | "rides" | "live" | "pricing" | "team";
   href: string;
   icon: LucideIcon;
   permission: Permission;
@@ -70,6 +71,7 @@ const NAV: NavGroup[] = [
       { key: "drivers", href: "/admin/drivers", icon: MotorbikeIcon, permission: "drivers:view" },
       { key: "riders", href: "/admin/riders", icon: UsersIcon, permission: "riders:view" },
       { key: "rides", href: "/admin/rides", icon: RouteIcon, permission: "rides:view" },
+      { key: "live", href: "/admin/live", icon: RadarIcon, permission: "rides:view" },
     ],
   },
   {
@@ -82,10 +84,29 @@ const NAV: NavGroup[] = [
   },
 ];
 
-/** Small spinner shown on a link while its page is loading. */
-function LinkPending() {
+/**
+ * End of a nav item: the pending-review count, replaced by a spinner while
+ * that page loads. The spinner only fades in after 120ms, so quick
+ * navigations don't flash.
+ */
+function NavItemEnd({ count }: { count?: number }) {
   const { pending } = useLinkStatus();
-  return <Spinner className="nav-pending ms-auto size-3.5" data-pending={pending} aria-hidden="true" />;
+  const locale = useLocale();
+  return (
+    <span className="relative ms-auto flex min-w-4 items-center justify-center group-data-[collapsible=icon]:hidden">
+      {count ? (
+        <span
+          className={cn(
+            "tabular rounded-md bg-brand px-1.5 py-0.5 text-[0.7rem] font-semibold text-asphalt transition-opacity",
+            pending && "opacity-0",
+          )}
+        >
+          {formatNumber(locale, count)}
+        </span>
+      ) : null}
+      <Spinner className="nav-pending absolute size-3.5" data-pending={pending} aria-hidden="true" />
+    </span>
+  );
 }
 
 export function AdminSidebar({
@@ -162,14 +183,9 @@ export function AdminSidebar({
                           >
                             <item.icon />
                             <span>{title}</span>
-                            {item.key !== "drivers" || pendingDrivers === 0 ? <LinkPending /> : null}
+                            <NavItemEnd count={item.key === "drivers" ? pendingDrivers : undefined} />
                           </Link>
                         </SidebarMenuButton>
-                        {item.key === "drivers" && pendingDrivers > 0 ? (
-                          <SidebarMenuBadge className="bg-brand text-asphalt peer-data-active/menu-button:text-asphalt">
-                            {formatNumber(locale, pendingDrivers)}
-                          </SidebarMenuBadge>
-                        ) : null}
                       </SidebarMenuItem>
                     );
                   })}

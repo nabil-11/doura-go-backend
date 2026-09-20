@@ -14,6 +14,7 @@ import { ChartCardSkeleton, ListCardSkeleton, StatCardsSkeleton } from "@/compon
 import { requireAdmin } from "@/lib/auth/guards";
 import { interpolate } from "@/lib/i18n/format";
 import { getDictionary, getLocale } from "@/lib/i18n/get-dictionary";
+import { requestTime } from "@/lib/time";
 
 export async function generateMetadata(): Promise<Metadata> {
   const dict = await getDictionary();
@@ -23,7 +24,7 @@ export async function generateMetadata(): Promise<Metadata> {
 export default async function OverviewPage() {
   await connection();
   const [admin, dict, locale] = await Promise.all([requireAdmin(), getDictionary(), getLocale()]);
-  const now = Date.now();
+  const now = requestTime();
   const firstName = admin.name.split(" ")[0] ?? admin.name;
 
   // Each widget streams in on its own, behind a skeleton of the same shape.

@@ -11,6 +11,7 @@ import {
   type DriverStatus,
   type VehicleType,
 } from "../../domain/driver";
+import type { DriverBalance } from "../../domain/pricing";
 import { pointSchema, storedFileSchema, type GeoPoint, type StoredFile } from "./shared";
 
 export interface DriverRecord {
@@ -38,9 +39,14 @@ export interface DriverRecord {
   documents: Partial<Record<DocumentKind, StoredFile>>;
   rating: { average: number; count: number };
   stats: { completedRides: number; earnings: number };
+  /** Commission owed to Doura Go on cash rides, and what has been settled. */
+  balance: DriverBalance;
   /** Last known position, reported by the driver app. */
   location?: GeoPoint | null;
   lastSeenAt?: Date | null;
+  /** Bumped to sign every device out (suspension, support action). */
+  tokenVersion: number;
+  lastLoginAt?: Date | null;
   review?: {
     by?: Types.ObjectId | null;
     at?: Date | null;
@@ -92,9 +98,16 @@ const driverSchema = new Schema<DriverRecord>(
       completedRides: { type: Number, default: 0, min: 0 },
       earnings: { type: Number, default: 0, min: 0 },
     },
+    balance: {
+      commissionDue: { type: Number, default: 0, min: 0 },
+      paidTotal: { type: Number, default: 0, min: 0 },
+      lastPaymentAt: { type: Date, default: null },
+    },
     // No default: a missing point keeps the document out of the 2dsphere index.
     location: { type: pointSchema, default: undefined },
     lastSeenAt: { type: Date, default: null },
+    tokenVersion: { type: Number, default: 1, min: 1 },
+    lastLoginAt: { type: Date, default: null },
     review: {
       by: { type: Schema.Types.ObjectId, ref: "Admin", default: null },
       at: { type: Date, default: null },

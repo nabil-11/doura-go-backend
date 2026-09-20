@@ -21,6 +21,9 @@ import { zonedMidnight } from "@/lib/time";
 
 type WidgetProps = { dict: Dictionary; locale: Locale };
 
+// Headline amounts read better in whole dinars; detail pages keep the millimes.
+const WHOLE_UNITS = { minimumFractionDigits: 0, maximumFractionDigits: 0 } as const;
+
 export async function KpiCards({ dict, locale }: WidgetProps) {
   const t = dict.admin.overview.kpis;
   const [counts, online, rides] = await Promise.all([countDriversByStatus(), countOnlineDrivers(), getRideStats()]);
@@ -52,8 +55,10 @@ export async function KpiCards({ dict, locale }: WidgetProps) {
       />
       <StatCard
         label={t.commissionMonth}
-        value={formatCurrency(locale, rides.commissionMonth, rides.currency)}
-        hint={interpolate(t.grossMonth, { amount: formatCurrency(locale, rides.grossMonth, rides.currency) })}
+        value={formatCurrency(locale, rides.commissionMonth, rides.currency, WHOLE_UNITS)}
+        hint={interpolate(t.grossMonth, {
+          amount: formatCurrency(locale, rides.grossMonth, rides.currency, WHOLE_UNITS),
+        })}
         icon={CoinsIcon}
       />
     </div>

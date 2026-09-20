@@ -12,6 +12,7 @@ export const ACTIVITY_ACTIONS = [
   "driver.deleted",
   "driver.document_uploaded",
   "driver.note_added",
+  "driver.payment_recorded",
   "rider.blocked",
   "rider.unblocked",
   "pricing.updated",

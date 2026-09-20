@@ -1,7 +1,7 @@
 "use client";
 
 import { RefreshCwIcon, UserPlusIcon } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { useDictionary } from "@/components/i18n/locale-provider";
@@ -39,6 +39,7 @@ export function AddMemberDialog() {
   const t = dict.admin.team;
   const [open, setOpen] = useState(false);
   const [round, setRound] = useState(0);
+  const close = useCallback(() => setOpen(false), []);
 
   return (
     <Dialog
@@ -59,7 +60,7 @@ export function AddMemberDialog() {
           <DialogTitle>{t.form.title}</DialogTitle>
           <DialogDescription>{t.form.description}</DialogDescription>
         </DialogHeader>
-        <MemberForm key={round} onDone={() => setOpen(false)} />
+        <MemberForm key={round} onDone={close} />
       </DialogContent>
     </Dialog>
   );

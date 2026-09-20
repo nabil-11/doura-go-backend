@@ -1,6 +1,7 @@
 import "server-only";
 
 import { Types } from "mongoose";
+import { cache } from "react";
 
 import type { CurrentAdmin } from "@/lib/auth/dal";
 import { connectToDatabase } from "@/lib/db/connect";
@@ -27,8 +28,19 @@ function pick(record: PricingRecord): PricingValues {
     bookingFee: record.bookingFee,
     commissionRate: record.commissionRate,
     cancellationFee: record.cancellationFee,
+    commissionCreditLimit: record.commissionCreditLimit ?? DEFAULT_PRICING.commissionCreditLimit,
   };
 }
+
+/**
+ * Just the numbers — no lookup of who last changed them. This is the one the
+ * ride flow and the apps use, several times per request.
+ */
+export const getPricingValues = cache(async (): Promise<PricingValues> => {
+  await connectToDatabase();
+  const record = await Pricing.findOne({ key: "default" }).lean<PricingRecord>();
+  return record ? pick(record) : DEFAULT_PRICING;
+});
 
 export async function getPricing(): Promise<PricingState> {
   await connectToDatabase();

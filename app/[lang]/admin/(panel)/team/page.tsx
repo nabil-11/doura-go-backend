@@ -15,6 +15,7 @@ import { ADMIN_ROLES, can } from "@/lib/auth/roles";
 import { formatRelative, initials } from "@/lib/i18n/format";
 import { getDictionary, getLocale } from "@/lib/i18n/get-dictionary";
 import { listAdmins } from "@/lib/services/admins";
+import { requestTime } from "@/lib/time";
 
 export async function generateMetadata(): Promise<Metadata> {
   const dict = await getDictionary();
@@ -28,7 +29,7 @@ export default async function TeamPage() {
   const members = await listAdmins();
   const canManage = can(admin.role, "team:manage");
   const t = dict.admin.team;
-  const now = Date.now();
+  const now = requestTime();
 
   return (
     <div className="space-y-6">

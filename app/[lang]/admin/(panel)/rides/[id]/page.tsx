@@ -6,6 +6,7 @@ import { notFound } from "next/navigation";
 import { AccessDenied } from "@/components/admin/access-denied";
 import { BackLink } from "@/components/admin/page-header";
 import { RideStatusBadge } from "@/components/admin/status-badge";
+import { MapView } from "@/components/map/map-view";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { requireAdmin } from "@/lib/auth/guards";
@@ -87,6 +88,18 @@ export default async function RidePage({ params }: PageProps<"/[lang]/admin/ride
                 {interpolate(dict.common.kilometersShort, { count: formatNumber(locale, ride.distanceKm, { maximumFractionDigits: 1 }) })} ·{" "}
                 {interpolate(dict.common.minutesShort, { count: formatNumber(locale, ride.durationMin) })}
               </p>
+
+              {ride.pickupPoint && ride.dropoffPoint ? (
+                <MapView
+                  className="mt-5 h-72"
+                  label={t.map}
+                  markers={[
+                    { id: "pickup", kind: "pickup", title: t.pickup, meta: ride.pickup, ...ride.pickupPoint },
+                    { id: "dropoff", kind: "dropoff", title: t.dropoff, meta: ride.dropoff, ...ride.dropoffPoint },
+                  ]}
+                  route={[ride.pickupPoint, ride.dropoffPoint]}
+                />
+              ) : null}
             </CardContent>
           </Card>
 

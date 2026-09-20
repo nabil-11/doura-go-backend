@@ -173,7 +173,7 @@ export function DriverForm(props: Props) {
             <TextField name="vehicleModel" label={t.vehicleModel} defaultValue={values?.vehicleModel} error={error("vehicleModel")} />
             <TextField name="vehicleYear" type="number" inputMode="numeric" min={1980} max={2100} label={t.vehicleYear} defaultValue={values?.vehicleYear} error={error("vehicleYear")} />
             <TextField name="vehicleColor" label={t.vehicleColor} defaultValue={values?.vehicleColor} error={error("vehicleColor")} />
-            <TextField name="plateNumber" label={t.plateNumber} dir="auto" placeholder="123 TU 4567" defaultValue={values?.plateNumber} error={error("plateNumber")} className="uppercase" />
+            <TextField name="plateNumber" label={t.plateNumber} dir="auto" placeholder="123 TU 4567" defaultValue={values?.plateNumber} error={error("plateNumber")} className="uppercase placeholder:normal-case" />
           </div>
         </div>
       </Section>

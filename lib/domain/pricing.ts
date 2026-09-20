@@ -11,6 +11,13 @@ export type PricingValues = {
   /** Platform commission in percent (0–100) */
   commissionRate: number;
   cancellationFee: number;
+  /**
+   * How much commission a driver may owe before their account stops taking
+   * rides. Riders pay in cash, so the driver keeps the whole fare and the
+   * commission builds up as a debt; this is the ceiling on that debt. Set it
+   * to 0 to switch the limit off.
+   */
+  commissionCreditLimit: number;
 };
 
 /** Starting values — tune them from the backoffice. Amounts in TND. */
@@ -23,6 +30,7 @@ export const DEFAULT_PRICING: PricingValues = {
   bookingFee: 0.2,
   commissionRate: 15,
   cancellationFee: 1,
+  commissionCreditLimit: 150,
 };
 
 /** Fares are rounded up to this step (0.100 TND = 100 millimes). */
@@ -67,4 +75,48 @@ export function estimateFare(pricing: PricingValues, distanceKm: number, duratio
     driverEarnings: round3(total - commission),
     currency: pricing.currency,
   };
+}
+
+// ------------------------------------------------- what a driver owes us ---
+
+/**
+ * Cash rides mean the driver is paid by the rider and owes Doura Go its
+ * commission afterwards. That debt is tracked on the driver and settled at the
+ * office; until it is, a driver over the limit cannot go back on the road.
+ */
+export type DriverBalance = {
+  commissionDue: number;
+  paidTotal: number;
+  lastPaymentAt: Date | null;
+};
+
+export const EMPTY_BALANCE: DriverBalance = { commissionDue: 0, paidTotal: 0, lastPaymentAt: null };
+
+/** Reads a stored balance, filling in anything a older document is missing. */
+export function readBalance(balance: Partial<DriverBalance> | null | undefined): DriverBalance {
+  return {
+    commissionDue: round3(balance?.commissionDue ?? 0),
+    paidTotal: round3(balance?.paidTotal ?? 0),
+    lastPaymentAt: balance?.lastPaymentAt ?? null,
+  };
+}
+
+/** How a payment can reach us. `adjustment` is a manual correction, not money. */
+export const PAYMENT_CHANNELS = ["cash", "bank", "adjustment"] as const;
+export type PaymentChannel = (typeof PAYMENT_CHANNELS)[number];
+
+export function isOverCreditLimit(commissionDue: number, limit: number) {
+  return limit > 0 && commissionDue >= limit;
+}
+
+/** 0–1, for the bar on the driver's page. Above the limit it reads full. */
+export function creditUsage(commissionDue: number, limit: number) {
+  if (limit <= 0) return 0;
+  return Math.min(1, Math.max(0, commissionDue / limit));
+}
+
+/** What is left before the account stops taking rides. */
+export function creditRemaining(commissionDue: number, limit: number) {
+  if (limit <= 0) return Infinity;
+  return Math.max(0, round3(limit - commissionDue));
 }

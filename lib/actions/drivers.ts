@@ -2,6 +2,7 @@
 
 import { authorize } from "@/lib/auth/dal";
 import { DOCUMENT_KINDS, isDriverAction, type DocumentKind, type DriverStatus } from "@/lib/domain/driver";
+import { recordDriverPayment } from "@/lib/services/balance";
 import {
   addDriverNote,
   changeDriverStatus,
@@ -14,9 +15,11 @@ import { isFilled, validateDocumentFile } from "@/lib/storage/cloudinary";
 import { formValues, toFieldErrors, type ActionState, type FieldErrors } from "@/lib/validation/common";
 import {
   DRIVER_FIELDS,
+  PAYMENT_FIELDS,
   createDriverSchema,
   driverSchema,
   noteSchema,
+  paymentSchema,
   statusChangeSchema,
 } from "@/lib/validation/driver";
 
@@ -158,6 +161,45 @@ export async function deleteDriverAction(driverId: string): Promise<ActionState>
     if (!result.ok) return { status: "error", error: result.error };
     revalidateBackoffice();
     return { status: "success" };
+  } catch (error) {
+    return unexpected(error);
+  }
+}
+
+/**
+ * Records a commission settlement. Operations staff take the cash and clear
+ * the balance here; a driver stopped by the credit limit is back on the road
+ * as soon as this goes through.
+ */
+export async function recordPaymentAction(
+  _previous: ActionState<{ due: number }>,
+  formData: FormData,
+): Promise<ActionState<{ due: number }>> {
+  const auth = await authorize("drivers:manage");
+  if (!auth.ok) return { status: "error", error: auth.error };
+
+  const driverId = formData.get("driverId");
+  if (typeof driverId !== "string") return { status: "error", error: "notFound" };
+
+  const parsed = paymentSchema.safeParse(formValues(formData, PAYMENT_FIELDS));
+  if (!parsed.success) return { status: "error", fieldErrors: toFieldErrors(parsed.error) };
+
+  try {
+    const result = await recordDriverPayment(
+      driverId,
+      {
+        amount: parsed.data.amount,
+        channel: parsed.data.channel,
+        reference: parsed.data.reference,
+        note: parsed.data.note,
+        expectedDue: parsed.data.expectedDue,
+      },
+      auth.admin,
+    );
+    if (!result.ok) return { status: "error", error: result.error };
+
+    revalidateBackoffice();
+    return { status: "success", data: { due: result.data.balance.commissionDue } };
   } catch (error) {
     return unexpected(error);
   }

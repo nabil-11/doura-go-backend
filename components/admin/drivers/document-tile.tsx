@@ -55,7 +55,7 @@ export function DocumentTile({ driverId, kind, required, canUpload, file }: Prop
         setLoaded(false);
         setBroken(false);
         toast.success(t.uploaded);
-      } else {
+      } else if (result.status === "error") {
         toast.error(resolveMessage(dict, result.error ?? result.fieldErrors?.file) ?? dict.errors.generic);
       }
     });
@@ -86,6 +86,11 @@ export function DocumentTile({ driverId, kind, required, canUpload, file }: Prop
             {file ? <ImageOffIcon className="size-7" aria-hidden="true" /> : <FileTextIcon className="size-7" aria-hidden="true" />}
           </div>
         )}
+        {required ? (
+          <Badge variant="outline" className="absolute end-2 top-2 bg-card/90 text-[0.65rem] backdrop-blur">
+            {t.required}
+          </Badge>
+        ) : null}
         {uploading ? (
           <div className="absolute inset-0 grid place-items-center bg-background/70 backdrop-blur-sm">
             <Spinner className="size-6" aria-label={dict.common.loading} />
@@ -93,18 +98,13 @@ export function DocumentTile({ driverId, kind, required, canUpload, file }: Prop
         ) : null}
       </div>
       <div className="flex flex-1 flex-col gap-3 p-3">
-        <div className="flex items-start justify-between gap-2">
-          <div className="min-w-0">
-            <p className="truncate text-sm font-medium">{t[kind]}</p>
-            <p className={cn("text-xs", file ? "text-muted-foreground" : required ? "text-destructive" : "text-muted-foreground")}>
-              {file ? interpolate(t.uploadedOn, { date: file.uploadedAtLabel }) : t.missing}
-            </p>
-          </div>
-          {required ? (
-            <Badge variant="outline" className="shrink-0 text-[0.65rem]">
-              {t.required}
-            </Badge>
-          ) : null}
+        <div className="min-w-0">
+          <p className="truncate text-sm font-medium" title={t[kind]}>
+            {t[kind]}
+          </p>
+          <p className={cn("text-xs", file ? "text-muted-foreground" : required ? "text-destructive" : "text-muted-foreground")}>
+            {file ? interpolate(t.uploadedOn, { date: file.uploadedAtLabel }) : t.missing}
+          </p>
         </div>
         <div className="mt-auto flex gap-2">
           {file ? (

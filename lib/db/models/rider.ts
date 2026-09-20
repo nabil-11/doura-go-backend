@@ -12,6 +12,9 @@ export interface RiderRecord {
   rating: { average: number; count: number };
   stats: { completedRides: number };
   lastRideAt?: Date | null;
+  /** Bumped to sign every device out (blocking, support action). */
+  tokenVersion: number;
+  lastLoginAt?: Date | null;
   isDemo?: boolean;
   createdAt: Date;
   updatedAt: Date;
@@ -32,6 +35,8 @@ const riderSchema = new Schema<RiderRecord>(
       completedRides: { type: Number, default: 0, min: 0 },
     },
     lastRideAt: { type: Date, default: null },
+    tokenVersion: { type: Number, default: 1, min: 1 },
+    lastLoginAt: { type: Date, default: null },
     isDemo: { type: Boolean, default: undefined },
   },
   { timestamps: true },

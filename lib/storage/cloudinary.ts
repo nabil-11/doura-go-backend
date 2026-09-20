@@ -97,26 +97,29 @@ export function avatarUrl(file: Pick<StoredFile, "publicId" | "version"> | null 
   });
 }
 
-/** Signed delivery URL for a stored document (original file or a JPG preview). */
+/**
+ * Server-side URL for a stored document. Only ever fetched by our own route
+ * handler, never sent to the browser.
+ * - preview: signed CDN URL of a resized JPG (first page for PDFs)
+ * - original: signed download API URL, valid 60 seconds. Unlike CDN URLs it
+ *   works even when the Cloudinary account blocks PDF delivery (the default).
+ */
 export function signedFileUrl(file: StoredFile, variant: "original" | "preview") {
-  const isPdf = file.format === "pdf";
-  if (variant === "preview") {
-    return cloudinary.url(file.publicId, {
-      secure: true,
-      sign_url: file.deliveryType === "authenticated",
+  if (variant === "original") {
+    return cloudinary.utils.private_download_url(file.publicId, file.format, {
       type: file.deliveryType,
-      resource_type: file.resourceType,
-      version: file.version,
-      format: "jpg",
-      transformation: [{ width: 720, crop: "limit", ...(isPdf ? { page: 1 } : {}) }, { quality: "auto" }],
+      resource_type: file.resourceType as "image",
+      expires_at: Math.floor(Date.now() / 1000) + 60,
     });
   }
+  const isPdf = file.format === "pdf";
   return cloudinary.url(file.publicId, {
     secure: true,
     sign_url: file.deliveryType === "authenticated",
     type: file.deliveryType,
     resource_type: file.resourceType,
     version: file.version,
-    format: file.format,
+    format: "jpg",
+    transformation: [{ width: 720, crop: "limit", ...(isPdf ? { page: 1 } : {}) }, { quality: "auto" }],
   });
 }

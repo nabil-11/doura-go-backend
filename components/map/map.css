@@ -1,0 +1,117 @@
+/* Markers and chrome for the Leaflet maps. Scoped to .dg-map so nothing here
+   escapes into the rest of the interface. */
+
+.dg-map {
+  background: var(--muted);
+  font: inherit;
+}
+
+.dg-map .leaflet-container {
+  font-family: inherit;
+  background: var(--muted);
+}
+
+/* OpenStreetMap only ships light tiles. Inverting and rotating the hue back
+   gives a dark basemap that keeps roads legible, with no second provider. */
+.dark .dg-map .leaflet-tile-pane {
+  filter: invert(1) hue-rotate(180deg) brightness(0.92) contrast(0.9) saturate(0.8);
+}
+
+.dg-map .leaflet-control-zoom a {
+  background: var(--card);
+  color: var(--card-foreground);
+  border-color: var(--border);
+  font-weight: 600;
+}
+
+.dg-map .leaflet-control-zoom a:hover {
+  background: var(--accent);
+}
+
+.dg-map .leaflet-control-attribution {
+  background: color-mix(in oklab, var(--card) 88%, transparent);
+  color: var(--muted-foreground);
+  font-size: 0.65rem;
+  padding: 0 0.4em;
+}
+
+.dg-map .leaflet-control-attribution a {
+  color: var(--muted-foreground);
+  text-decoration: underline;
+}
+
+/* --- markers --------------------------------------------------------- */
+
+.dg-marker {
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  border: 2px solid var(--card);
+  box-shadow: 0 2px 6px rgb(0 0 0 / 0.35);
+  color: #0f1115;
+}
+
+.dg-marker svg {
+  width: 62%;
+  height: 62%;
+}
+
+.dg-marker--pickup {
+  background: var(--color-brand, #ffc800);
+}
+
+.dg-marker--dropoff {
+  background: #0f1115;
+  color: #ffffff;
+}
+
+.dg-marker--driver {
+  background: var(--color-status-good, #0ca30c);
+  color: #ffffff;
+}
+
+.dg-marker--driver-busy {
+  background: var(--color-status-warning, #fab219);
+}
+
+.dg-marker--place {
+  background: var(--card);
+  color: var(--card-foreground);
+}
+
+/* A soft halo so a driver marker stays findable against busy map detail. */
+.dg-marker--driver::after,
+.dg-marker--driver-busy::after {
+  content: "";
+  position: absolute;
+  inset: -6px;
+  border-radius: 999px;
+  border: 2px solid currentColor;
+  opacity: 0.25;
+}
+
+.dg-map .leaflet-popup-content-wrapper {
+  background: var(--popover);
+  color: var(--popover-foreground);
+  border-radius: var(--radius-md, 0.5rem);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 0.18);
+}
+
+.dg-map .leaflet-popup-tip {
+  background: var(--popover);
+}
+
+.dg-map .leaflet-popup-content {
+  margin: 0.6rem 0.75rem;
+  font-size: 0.8125rem;
+  line-height: 1.35;
+}
+
+.dg-popup-title {
+  font-weight: 600;
+}
+
+.dg-popup-meta {
+  color: var(--muted-foreground);
+  font-size: 0.75rem;
+}

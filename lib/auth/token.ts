@@ -22,7 +22,8 @@ export type SessionPayload = {
 
 let cachedKey: Uint8Array | null = null;
 
-function getKey() {
+/** The app secret as bytes. Shared with the mobile token layer. */
+export function secretKey() {
   if (cachedKey) return cachedKey;
   const secret = process.env.JWT_SECRET;
   if (!secret || secret.length < 32) {
@@ -40,13 +41,13 @@ export async function signSessionToken(payload: SessionPayload) {
     .setAudience(AUDIENCE)
     .setIssuedAt()
     .setExpirationTime(`${SESSION_TTL_SECONDS}s`)
-    .sign(getKey());
+    .sign(secretKey());
 }
 
 export async function verifySessionToken(token: string | undefined | null): Promise<SessionPayload | null> {
   if (!token) return null;
   try {
-    const { payload } = await jwtVerify(token, getKey(), {
+    const { payload } = await jwtVerify(token, secretKey(), {
       algorithms: ["HS256"],
       issuer: ISSUER,
       audience: AUDIENCE,

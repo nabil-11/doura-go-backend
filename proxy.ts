@@ -1,19 +1,35 @@
 import { NextResponse, type NextRequest } from "next/server";
 
+import { corsHeaders, isAllowedOrigin } from "@/lib/api/cors";
 import { SESSION_COOKIE, verifySessionToken } from "@/lib/auth/token";
 import { LOCALE_COOKIE, hasLocale, negotiateLocale } from "@/lib/i18n/config";
 
 const ONE_YEAR = 60 * 60 * 24 * 365;
 
 /**
- * 1. Every page lives under a locale prefix (/fr, /ar, /en). Requests without
+ * 1. Cross-origin access for the mobile apps on /api/v1, preflight included.
+ * 2. Every page lives under a locale prefix (/fr, /ar, /en). Requests without
  *    one are redirected to the remembered or negotiated locale.
- * 2. Optimistic auth for the backoffice: no valid session cookie → login page.
+ * 3. Optimistic auth for the backoffice: no valid session cookie → login page.
  *    This only reads the signed cookie. Real authorization happens in the data
  *    access layer (lib/auth/dal.ts) for every page and server action.
  */
 export async function proxy(request: NextRequest) {
   const { pathname, search } = request.nextUrl;
+
+  if (pathname.startsWith("/api/v1")) {
+    const origin = request.headers.get("origin");
+    // Same-origin calls (curl, the website itself) send no Origin and need none.
+    if (!isAllowedOrigin(origin)) {
+      return request.method === "OPTIONS" ? new NextResponse(null, { status: 403 }) : NextResponse.next();
+    }
+    const headers = corsHeaders(origin);
+    if (request.method === "OPTIONS") return new NextResponse(null, { status: 204, headers });
+    const response = NextResponse.next();
+    for (const [key, value] of Object.entries(headers)) response.headers.set(key, value);
+    return response;
+  }
+
   const [, first = "", ...rest] = pathname.split("/");
 
   if (!hasLocale(first)) {
@@ -61,5 +77,7 @@ export const config = {
   matcher: [
     // Everything except API routes, Next internals and files with an extension.
     "/((?!api|_next/static|_next/image|.*\\..*).*)",
+    // …plus the mobile API, which needs CORS headers and preflight answers.
+    "/api/v1/:path*",
   ],
 };

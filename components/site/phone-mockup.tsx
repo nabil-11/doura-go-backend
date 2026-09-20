@@ -73,6 +73,8 @@ export function PhoneMockup({ copy, fare }: { copy: MockCopy; fare: string }) {
   );
 }
 
+const ROUTE = "M88 332 L83 262 L118 254 L113 214 L178 200 L190 150";
+
 /** Stylised streets, the lake and the animated route. */
 function RouteMap() {
   return (
@@ -99,7 +101,7 @@ function RouteMap() {
       </g>
       {/* Route */}
       <path
-        d="M92 440 L86 330 L120 318 L112 244 L176 232 L190 150"
+        d={ROUTE}
         fill="none"
         stroke="#0F1115"
         strokeWidth="6"
@@ -107,7 +109,7 @@ function RouteMap() {
         strokeLinejoin="round"
       />
       <path
-        d="M92 440 L86 330 L120 318 L112 244 L176 232 L190 150"
+        d={ROUTE}
         fill="none"
         stroke="#FFC800"
         strokeWidth="2.5"
@@ -123,15 +125,15 @@ function RouteMap() {
         <rect x="-3" y="-3" width="6" height="6" rx="1" fill="#FFFFFF" />
       </g>
       {/* Pickup */}
-      <g transform="translate(92 440)">
+      <g transform="translate(88 332)">
         <circle r="18" fill="#FFC800" opacity="0.25" className="motion-safe:animate-ping-slow" style={{ transformOrigin: "center", transformBox: "fill-box" }} />
         <circle r="9" fill="#FFFFFF" stroke="#0F1115" strokeWidth="5" />
       </g>
-      {/* Driver, heading to the pickup point */}
-      <g transform="translate(88 372)">
+      {/* Driver, coming along the street to the pickup point */}
+      <g transform="translate(36 336)">
         <circle r="15" fill="#FFC800" stroke="#0F1115" strokeWidth="3" />
       </g>
-      <foreignObject x="76" y="360" width="24" height="24">
+      <foreignObject x="24" y="324" width="24" height="24">
         <div className="grid size-6 place-items-center text-asphalt">
           <MotorbikeIcon className="size-4" />
         </div>

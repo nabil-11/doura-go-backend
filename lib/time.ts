@@ -3,6 +3,14 @@
 
 import { APP_TIME_ZONE, dayKey } from "@/lib/i18n/format";
 
+/**
+ * Current time for Server Components. They render once per request, so
+ * reading the clock there is safe; this keeps it out of component bodies.
+ */
+export function requestTime() {
+  return Date.now();
+}
+
 const partsFormat = new Intl.DateTimeFormat("en-US", {
   timeZone: APP_TIME_ZONE,
   hourCycle: "h23",

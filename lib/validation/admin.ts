@@ -41,6 +41,7 @@ export const PRICING_FIELDS = [
   "bookingFee",
   "commissionRate",
   "cancellationFee",
+  "commissionCreditLimit",
 ] as const;
 
 export const pricingSchema = z.object({
@@ -51,4 +52,5 @@ export const pricingSchema = z.object({
   bookingFee: money(),
   commissionRate: money(100),
   cancellationFee: money(),
+  commissionCreditLimit: money(10_000),
 });

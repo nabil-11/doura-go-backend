@@ -35,6 +35,8 @@ function dateFormat(locale: Locale, options: Intl.DateTimeFormatOptions) {
   if (!format) {
     format = new Intl.DateTimeFormat(localeMeta[locale].intl, {
       timeZone: APP_TIME_ZONE,
+      // CLDR defaults Tunisian locales to a 12-hour clock; 24-hour is the norm there.
+      hourCycle: "h23",
       ...options,
     });
     dateFormats.set(key, format);

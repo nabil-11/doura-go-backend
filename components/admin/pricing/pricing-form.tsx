@@ -42,9 +42,9 @@ export function PricingForm({ initial, canEdit }: { initial: PricingValues; canE
   const formError = state.status === "error" && state.error ? resolveMessage(dict, state.error) : undefined;
   const money = (value: number) => formatCurrency(locale, value, values.currency);
 
-  function field(key: NumericKey, label: string, suffix: string, step: string) {
+  function field(key: NumericKey, label: string, suffix: string, step: string, hint?: string) {
     return (
-      <FieldShell label={label} error={resolveMessage(dict, fieldErrors?.[key])}>
+      <FieldShell label={label} hint={hint} error={resolveMessage(dict, fieldErrors?.[key])}>
         {(control) => (
           <InputGroup>
             <InputGroupInput
@@ -97,6 +97,15 @@ export function PricingForm({ initial, canEdit }: { initial: PricingValues; canE
             {field("commissionRate", t.commissionRate, "%", "0.5")}
             {field("bookingFee", t.bookingFee, currency, "0.05")}
             {field("cancellationFee", t.cancellationFee, currency, "0.1")}
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="border-b">
+            <CardTitle>{t.creditSection}</CardTitle>
+            <CardDescription>{t.creditHint}</CardDescription>
+          </CardHeader>
+          <CardContent className="grid gap-5 sm:grid-cols-2">
+            {field("commissionCreditLimit", t.creditLimit, currency, "10", t.creditLimitHint)}
           </CardContent>
         </Card>
         {canEdit ? (

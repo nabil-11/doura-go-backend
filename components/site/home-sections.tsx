@@ -125,7 +125,7 @@ export function Hero({ dict, locale, fare }: SectionProps & { fare: string }) {
           <div className="motion-safe:animate-float">
             <PhoneMockup copy={dict.site.mock} fare={fare} />
           </div>
-          <FloatingChip className="start-0 top-24 sm:start-6 lg:-start-4" icon={<ShieldCheckIcon className="size-4 text-status-good" />}>
+          <FloatingChip className="start-0 top-[46%] sm:start-6 lg:-start-6" icon={<ShieldCheckIcon className="size-4 text-status-good" />}>
             {dict.site.values[2].title}
           </FloatingChip>
           <FloatingChip className="end-0 bottom-28 sm:end-6 lg:-end-2" icon={<TimerIcon className="size-4 text-brand-deep" />}>
@@ -291,7 +291,9 @@ export function DriveSection({ dict, locale }: SectionProps) {
               <MotorbikeIcon className="size-5" />
             </span>
           </div>
-          <p className="mt-2 text-4xl font-bold">{formatCurrency(locale, 486.5)}</p>
+          <p className="mt-2 text-4xl font-bold">
+            {formatCurrency(locale, 486, undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+          </p>
           <p className="mt-1 text-sm text-white/50">{t.earnings}</p>
           <div className="mt-8 flex h-28 items-end gap-2.5">
             {week.map((value, index) => (
@@ -329,12 +331,12 @@ export function CitiesSection({ dict, locale }: SectionProps) {
               <li
                 key={city.id}
                 className={cn(
-                  "flex items-center justify-between gap-2 rounded-2xl border p-4",
+                  "flex flex-col items-start gap-3 rounded-2xl border p-4",
                   launching ? "border-transparent bg-asphalt text-white" : "border-border bg-card",
                 )}
               >
                 <span className="flex items-center gap-2 font-semibold">
-                  <MapPinIcon className={cn("size-4", launching ? "text-brand" : "text-muted-foreground")} aria-hidden="true" />
+                  <MapPinIcon className={cn("size-4 shrink-0", launching ? "text-brand" : "text-muted-foreground")} aria-hidden="true" />
                   {city.name[locale]}
                 </span>
                 <span

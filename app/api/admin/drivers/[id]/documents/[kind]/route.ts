@@ -21,10 +21,15 @@ export async function GET(request: NextRequest, context: RouteContext<"/api/admi
 
   const variant = request.nextUrl.searchParams.get("variant") === "original" ? "original" : "preview";
   const upstream = await fetch(signedFileUrl(file, variant), { cache: "no-store" });
-  if (!upstream.ok || !upstream.body) return new Response(null, { status: 502 });
+  if (!upstream.ok) {
+    console.error(`[documents] ${variant} fetch failed`, upstream.status, upstream.headers.get("x-cld-error"));
+    return new Response(null, { status: 502 });
+  }
 
+  // Files are capped at 4 MB, so buffering keeps the response simple and atomic.
+  const body = await upstream.arrayBuffer();
   const filename = `${kind}.${variant === "original" ? file.format : "jpg"}`;
-  return new Response(upstream.body, {
+  return new Response(body, {
     headers: {
       "Content-Type": upstream.headers.get("content-type") ?? "application/octet-stream",
       "Content-Disposition": `inline; filename="${filename}"`,

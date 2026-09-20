@@ -15,10 +15,12 @@ import { notFound } from "next/navigation";
 import { AccessDenied } from "@/components/admin/access-denied";
 import { ActivityFeed } from "@/components/admin/activity-feed";
 import { DocumentTile } from "@/components/admin/drivers/document-tile";
+import { BalanceCard } from "@/components/admin/drivers/balance-card";
 import { DriverStatusActions } from "@/components/admin/drivers/driver-status-actions";
 import { NoteForm } from "@/components/admin/drivers/note-form";
 import { BackLink } from "@/components/admin/page-header";
 import { AvailabilityIndicator, DriverStatusBadge } from "@/components/admin/status-badge";
+import { MapView } from "@/components/map/map-view";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -37,7 +39,9 @@ import {
 } from "@/lib/i18n/format";
 import { getDictionary, getLocale } from "@/lib/i18n/get-dictionary";
 import { listActivityFor } from "@/lib/services/activity";
+import { balanceState, listDriverPayments } from "@/lib/services/balance";
 import { getDriver } from "@/lib/services/drivers";
+import { requestTime } from "@/lib/time";
 import { cn } from "@/lib/utils";
 
 export async function generateMetadata({ params }: PageProps<"/[lang]/admin/drivers/[id]">): Promise<Metadata> {
@@ -60,11 +64,17 @@ export default async function DriverPage({ params }: PageProps<"/[lang]/admin/dr
   const [admin, dict, locale] = await Promise.all([requireAdmin(), getDictionary(), getLocale()]);
   if (!can(admin.role, "drivers:view")) return <AccessDenied dict={dict} />;
 
-  const [driver, activity] = await Promise.all([getDriver(id), listActivityFor("driver", id).catch(() => [])]);
+  const [driver, activity, payments] = await Promise.all([
+    getDriver(id),
+    listActivityFor("driver", id).catch(() => []),
+    listDriverPayments(id).catch(() => []),
+  ]);
   if (!driver) notFound();
 
+  const balance = await balanceState(driver);
+
   const t = dict.admin.drivers;
-  const now = Date.now();
+  const now = requestTime();
   const notSet = <span className="font-normal text-muted-foreground">{dict.common.notSet}</span>;
   const age = ageFrom(driver.dateOfBirth);
   const VehicleIcon = driver.vehicle.type === "scooter" ? ScooterIcon : MotorbikeIcon;
@@ -313,6 +323,42 @@ export default async function DriverPage({ params }: PageProps<"/[lang]/admin/dr
                   {driver.lastSeenAt ? formatRelative(locale, driver.lastSeenAt, now) : t.detail.never}
                 </p>
               </div>
+            </CardContent>
+          </Card>
+
+          <BalanceCard
+            driverId={driver.id}
+            driverName={driver.name}
+            balance={balance}
+            payments={payments}
+            canSettle={permissions.manage}
+            dict={dict}
+            locale={locale}
+          />
+
+          <Card>
+            <CardHeader>
+              <CardTitle>{t.detail.position}</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {driver.location ? (
+                <MapView
+                  className="h-56"
+                  label={t.detail.position}
+                  zoom={14}
+                  markers={[
+                    {
+                      id: driver.id,
+                      kind: driver.availability === "on_trip" ? "driver-busy" : "driver",
+                      title: driver.name,
+                      meta: driver.lastSeenAt ? formatRelative(locale, driver.lastSeenAt, now) : undefined,
+                      ...driver.location,
+                    },
+                  ]}
+                />
+              ) : (
+                <p className="text-sm text-muted-foreground">{t.detail.noPosition}</p>
+              )}
             </CardContent>
           </Card>
 
