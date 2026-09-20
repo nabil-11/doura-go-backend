@@ -4,7 +4,7 @@ import type { NextRequest } from "next/server";
 
 import type { RideStep } from "@/lib/domain/ride";
 import { advanceRide, partiesFor, toRideResource } from "@/lib/services/ride-flow";
-import { completeSchema } from "@/lib/validation/api";
+import { completeSchema, startSchema } from "@/lib/validation/api";
 
 import { json } from "./respond";
 import { apiRoute, readJson, requireDriver } from "./route";
@@ -22,8 +22,14 @@ export function driverStepRoute(step: RideStep) {
     const { driver } = await requireDriver(request, { approved: true });
     const { id } = await context.params;
 
-    // Only finishing a ride carries a payload: what was actually ridden.
-    const actuals = step === "complete" ? await readJson(request, completeSchema) : undefined;
+    // Starting and finishing both carry the rider's handover code; finishing
+    // also carries what was actually ridden. Arriving carries nothing.
+    const actuals =
+      step === "complete"
+        ? await readJson(request, completeSchema)
+        : step === "start"
+          ? await readJson(request, startSchema)
+          : undefined;
 
     const { ride, fareChanged } = await advanceRide(driver, id, step, actuals);
     const parties = await partiesFor([ride]);

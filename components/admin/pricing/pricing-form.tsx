@@ -8,13 +8,14 @@ import { FieldShell, FormAlert, SubmitButton, focusFirstInvalid, useFormAction }
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group";
 import { Separator } from "@/components/ui/separator";
+import { Switch } from "@/components/ui/switch";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { updatePricingAction } from "@/lib/actions/backoffice";
 import { estimateFare, type PricingValues } from "@/lib/domain/pricing";
 import { formatCurrency, formatNumber, interpolate } from "@/lib/i18n/format";
 import { idleState, resolveMessage, type ActionState } from "@/lib/validation/common";
 
-type NumericKey = Exclude<keyof PricingValues, "currency">;
+type NumericKey = Exclude<keyof PricingValues, "currency" | "requireHandover">;
 
 const TRIPS = [
   { id: "hop", distance: 1.5, duration: 5 },
@@ -116,7 +117,35 @@ export function PricingForm({ initial, canEdit }: { initial: PricingValues; canE
             <CardDescription>{t.creditHint}</CardDescription>
           </CardHeader>
           <CardContent className="grid gap-5 sm:grid-cols-2">
-            {field("commissionCreditLimit", t.creditLimit, currency, "10", t.creditLimitHint)}
+            {field(
+              "cashLimit",
+              t.cashLimit,
+              currency,
+              "10",
+              interpolate(t.cashLimitHint, { rate: formatNumber(locale, values.commissionRate) }),
+            )}
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="border-b">
+            <CardTitle>{t.handoverSection}</CardTitle>
+            <CardDescription>{t.handoverHint}</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <label className="flex items-start gap-3">
+              {/* Unchecked sends nothing, so the hidden field carries the "off". */}
+              <input type="hidden" name="requireHandover" value={values.requireHandover ? "on" : ""} />
+              <Switch
+                checked={values.requireHandover}
+                disabled={!canEdit}
+                onCheckedChange={(next) => setValues((current) => ({ ...current, requireHandover: next }))}
+                aria-label={t.handoverToggle}
+              />
+              <span className="grid gap-1">
+                <span className="text-sm font-medium">{t.handoverToggle}</span>
+                <span className="text-sm text-muted-foreground">{t.handoverToggleHint}</span>
+              </span>
+            </label>
           </CardContent>
         </Card>
         {canEdit ? (

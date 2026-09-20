@@ -6,6 +6,12 @@ export interface PricingRecord extends PricingValues {
   _id: Types.ObjectId;
   /** Singleton key — one pricing document per service area in the future. */
   key: string;
+  /**
+   * What `cashLimit` was called when it counted the commission owed rather
+   * than the cash the driver is holding. Documents written before the change
+   * still carry it; nothing writes it any more.
+   */
+  commissionCreditLimit?: number;
   updatedBy?: Types.ObjectId | null;
   createdAt: Date;
   updatedAt: Date;
@@ -25,7 +31,8 @@ const pricingSchema = new Schema<PricingRecord>(
     commissionRate: { type: Number, required: true, min: 0, max: 100 },
     shortRideKm: { type: Number, required: true, min: 0, max: 50, default: DEFAULT_PRICING.shortRideKm },
     shortRideFare: { type: Number, required: true, min: 0, max: 1000, default: DEFAULT_PRICING.shortRideFare },
-    commissionCreditLimit: { type: Number, required: true, min: 0, max: 10_000, default: DEFAULT_PRICING.commissionCreditLimit },
+    cashLimit: { type: Number, required: true, min: 0, max: 10_000, default: DEFAULT_PRICING.cashLimit },
+    requireHandover: { type: Boolean, required: true, default: DEFAULT_PRICING.requireHandover },
     cancellationFee: money,
     updatedBy: { type: Schema.Types.ObjectId, ref: "Admin", default: null },
   },

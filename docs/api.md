@@ -149,8 +149,9 @@ A driver profile carries what the apps need to decide what to show:
     "stats": { "completedRides": 214, "earnings": 1840.25 },
     "vehicle": { "brand": "Yamaha", "model": "NMAX", "plateNumber": "123 TN 4567" },
     "balance": {
-      "commissionDue": 62.4, "limit": 150, "blocked": false,
-      "remaining": 87.6, "paidTotal": 340, "lastPaymentAt": "…", "currency": "TND"
+      "cashCollected": 96.5, "commissionDue": 14.475,
+      "limit": 150, "blocked": false, "remaining": 53.5,
+      "paidTotal": 340, "lastPaymentAt": "…", "currency": "TND"
     },
     "onboarding": {
       "ready": true, "documents": true, "license": true, "vehicle": true,
@@ -185,7 +186,7 @@ long a search lasts. Fetch it at launch; it is the same data the website shows.
 ```
 
 Nothing is written, so it can be called while the rider drags a pin. A pickup
-outside a city that is open returns `422 outsideServiceArea`.
+outside the service area returns `422 outsideServiceArea`.
 
 The distance and duration are the real ones, routed along streets, and `route`
 carries that path so the app can draw it. `fare.flat` is true when the ride was
@@ -340,10 +341,17 @@ Each is refused unless the ride is in a status that step can follow, so a double
 tap or a request that arrives late over a bad connection cannot skip ahead —
 `409 invalidTransition`.
 
-`complete` takes an optional body:
+**`start` and `complete` both need the rider's code** — see
+[Handover codes](#handover-codes).
 
 ```json
-{ "distanceKm": 6.5, "durationMin": 20 }
+{ "code": "3449" }
+```
+
+`complete` takes the code plus, optionally, what was actually ridden:
+
+```json
+{ "distanceKm": 6.5, "durationMin": 20, "code": "3106" }
 ```
 
 What was actually ridden. The ride is re-priced on it, clamped to twice the
@@ -364,20 +372,67 @@ keep. Days are counted in `Africa/Tunis`.
 
 ---
 
-## Commission (cash rides)
+## Handover codes
 
-Riders pay the driver in cash, so the driver holds the whole fare and owes
-Doura Go its share. That debt is on the driver's profile as `balance`:
+A driver cannot start or finish a ride on their own word. The **rider** is given
+two four-digit codes, and the driver has to be shown one to begin and the other
+to close. That is what ties a completed ride — and the cash that changed hands
+on it — to the two people who actually took it.
+
+The codes reach the rider on their own ride resource, while the ride is live:
 
 ```json
-"balance": { "commissionDue": 62.4, "limit": 150, "blocked": false, "remaining": 87.6 }
+"handover": {
+  "start":  { "code": "3449", "qr": "DG1:6ab0…:start:3449" },
+  "finish": { "code": "3106", "qr": "DG1:6ab0…:finish:3106" }
+}
 ```
 
-Every completed cash ride adds its commission. When `commissionDue` reaches the
-limit set on the backoffice pricing page, `blocked` turns true and the account
-stops taking rides: going online and accepting both return `403 commissionDue`,
-with the amounts in `details`. The driver settles at the office, an operator
-records the payment, and the account reopens on the spot.
+- **Riders only.** For a driver token `handover` is always `null`; sending the
+  codes to the app that has to be told them would defeat the point.
+- Each half becomes `null` once it has been used, so the same four digits can
+  never move a ride twice.
+- `qr` is the exact string the rider's QR encodes — `DG1:<rideId>:<start|finish>:<code>`.
+  The driver app scans it, checks the ride id is the one it is on, and sends the
+  `code`. Typing the digits does the same thing.
+
+Wrong codes are counted. After five the code is **burned and reissued** to the
+rider, and the call returns `423 handoverLocked` — the two of them are standing
+together, so the answer is to read out the new one, not to abandon the ride.
+
+| Result | Code | Meaning |
+| --- | --- | --- |
+| No code sent | `422 handoverRequired` | Ask the rider for it |
+| Wrong code | `422 handoverWrong` | `details.remaining` tries left |
+| Too many wrong | `423 handoverLocked` | A fresh code is now on the rider's screen |
+
+Enforcement is an operator switch — **Require the rider's code** on the
+backoffice pricing page. It exists for the window where the server asks for a
+code and the driver app in people's hands cannot yet supply one; with it off,
+the codes are still issued and still shown, but a step without one is allowed.
+
+---
+
+## Cash held (cash rides)
+
+Riders pay the driver in cash, so the whole fare stays in the driver's pocket
+until they settle. Two numbers track that on the driver's profile as `balance`:
+
+```json
+"balance": { "cashCollected": 96.5, "commissionDue": 14.475, "limit": 150, "blocked": false, "remaining": 53.5 }
+```
+
+`cashCollected` is the whole of every unsettled cash fare — the platform's money
+in the driver's hands — and `commissionDue` is our share of it, which is what
+they actually hand over.
+
+**The limit is on `cashCollected`, not on `commissionDue`.** When the cash held
+reaches the limit set on the backoffice pricing page, `blocked` turns true and
+the account stops taking rides: going online and accepting both return
+`403 commissionDue`, with `cash`, `due` and `limit` in `details`. The driver
+settles at the office, an operator records the payment, and the account reopens
+on the spot. Settling clears both numbers — a part payment lowers them by the
+same fraction.
 
 Show `remaining` while a driver is working — running into the limit mid-shift is
 the thing to warn them about, not explain afterwards.
@@ -396,7 +451,7 @@ the thing to warn them about, not explain afterwards.
 | `notRegistered` | 403 | No driver account for that number |
 | `accountBlocked` | 403 | Rider blocked by the team |
 | `driverNotActive` | 403 | Driver not approved for rides |
-| `commissionDue` | 403 | Credit limit reached; settle first |
+| `commissionDue` | 403 | Holding the maximum cash; settle first |
 | `notFound` | 404 | No such resource, or not yours |
 | `rideInProgress` | 409 | Already on a ride |
 | `driverOffline` | 409 | Go online first |

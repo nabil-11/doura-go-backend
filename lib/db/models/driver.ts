@@ -99,6 +99,7 @@ const driverSchema = new Schema<DriverRecord>(
       earnings: { type: Number, default: 0, min: 0 },
     },
     balance: {
+      cashCollected: { type: Number, default: 0, min: 0 },
       commissionDue: { type: Number, default: 0, min: 0 },
       paidTotal: { type: Number, default: 0, min: 0 },
       lastPaymentAt: { type: Date, default: null },

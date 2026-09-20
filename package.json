@@ -11,7 +11,9 @@
     "admin:create": "tsx scripts/create-admin.ts",
     "db:seed": "tsx scripts/seed-demo.ts",
     "api:test": "tsx scripts/api-smoke.ts",
-    "test:accounts": "tsx scripts/test-accounts.ts"
+    "test:accounts": "tsx scripts/test-accounts.ts",
+    "db:backfill-cash": "tsx scripts/backfill-cash.ts",
+    "handover": "tsx scripts/handover-switch.ts"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",

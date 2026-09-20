@@ -63,11 +63,28 @@ export const cancelSchema = z
 
 export const rateSchema = z.object({ rating: z.int().min(1).max(5) });
 
-/** What the driver app measured, used to settle the fare. Both are optional. */
+/** The rider's four digits, typed in or read out of their QR. */
+const handoverCodeField = z
+  .string()
+  .trim()
+  .regex(/^\d{4}$/, "invalidRequest")
+  .optional();
+
+/** Starting a ride takes only the rider's code. */
+export const startSchema = z
+  .object({ code: handoverCodeField })
+  .optional()
+  .default({});
+
+/**
+ * Finishing takes the rider's code, and optionally what was actually ridden,
+ * which settles the fare.
+ */
 export const completeSchema = z
   .object({
     distanceKm: z.number().min(0).max(500).optional(),
     durationMin: z.number().min(0).max(1440).optional(),
+    code: handoverCodeField,
   })
   .optional()
   .default({});

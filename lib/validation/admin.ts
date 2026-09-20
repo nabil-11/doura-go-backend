@@ -43,7 +43,8 @@ export const PRICING_FIELDS = [
   "cancellationFee",
   "shortRideKm",
   "shortRideFare",
-  "commissionCreditLimit",
+  "cashLimit",
+  "requireHandover",
 ] as const;
 
 export const pricingSchema = z.object({
@@ -56,5 +57,10 @@ export const pricingSchema = z.object({
   cancellationFee: money(),
   shortRideKm: money(50),
   shortRideFare: money(),
-  commissionCreditLimit: money(10_000),
+  cashLimit: money(10_000),
+  // An unchecked checkbox sends nothing at all, so absence means off.
+  requireHandover: z
+    .union([z.literal("on"), z.literal("true"), z.literal("")])
+    .optional()
+    .transform((value) => value === "on" || value === "true"),
 });

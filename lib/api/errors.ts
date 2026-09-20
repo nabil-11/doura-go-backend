@@ -35,6 +35,12 @@ export const API_ERRORS = {
   offerExpired: { status: 409, message: "That ride is no longer on offer." },
   invalidTransition: { status: 409, message: "The ride is not in a state that allows this." },
   alreadyRated: { status: 409, message: "This ride has already been rated." },
+  handoverRequired: { status: 422, message: "Ask the rider for their code." },
+  handoverWrong: { status: 422, message: "That code does not match. Check it with the rider." },
+  handoverLocked: {
+    status: 423,
+    message: "Too many wrong codes. The rider has been given a new one.",
+  },
 } as const;
 
 export type ApiErrorCode = keyof typeof API_ERRORS;

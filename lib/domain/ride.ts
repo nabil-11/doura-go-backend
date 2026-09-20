@@ -75,3 +75,51 @@ export function rideCode() {
   for (const byte of bytes) code += CODE_ALPHABET[byte % CODE_ALPHABET.length];
   return `DG-${code}`;
 }
+
+/**
+ * The two handovers: the rider proves who they are when the ride starts, and
+ * agrees it is over when it ends.
+ *
+ * Only the rider ever sees these. The driver has to be told them — read out,
+ * or scanned off the rider's screen — which is what makes them evidence that
+ * the two people were actually together. Without them a driver can start a
+ * ride from anywhere and close it whenever, and on cash fares that is the
+ * whole game.
+ */
+export const HANDOVERS = ["start", "finish"] as const;
+export type Handover = (typeof HANDOVERS)[number];
+
+/** Which handover a step needs, if any. */
+export const STEP_HANDOVER: Partial<Record<RideStep, Handover>> = {
+  start: "start",
+  complete: "finish",
+};
+
+/** Four digits: short enough to read out over a running engine. */
+export function handoverCode() {
+  // Rejection-free and unbiased: 0000–9999 straight from four random digits.
+  const bytes = crypto.getRandomValues(new Uint8Array(4));
+  let code = "";
+  for (const byte of bytes) code += String(byte % 10);
+  return code;
+}
+
+/** How many wrong tries before a code is burned and has to be reissued. */
+export const HANDOVER_ATTEMPTS = 5;
+
+/**
+ * What the rider's QR encodes. Kept to one short line so the code stays
+ * low-density and scans from a cracked phone in daylight.
+ */
+export function handoverPayload(rideId: string, handover: Handover, code: string) {
+  return `DG1:${rideId}:${handover}:${code}`;
+}
+
+export function parseHandoverPayload(scanned: string) {
+  const parts = scanned.trim().split(":");
+  if (parts.length !== 4 || parts[0] !== "DG1") return null;
+  const [, rideId, handover, code] = parts;
+  if (!HANDOVERS.includes(handover as Handover)) return null;
+  if (!/^\d{4}$/.test(code)) return null;
+  return { rideId, handover: handover as Handover, code };
+}

@@ -30,7 +30,11 @@ function pick(record: PricingRecord): PricingValues {
     cancellationFee: record.cancellationFee,
     shortRideKm: record.shortRideKm ?? DEFAULT_PRICING.shortRideKm,
     shortRideFare: record.shortRideFare ?? DEFAULT_PRICING.shortRideFare,
-    commissionCreditLimit: record.commissionCreditLimit ?? DEFAULT_PRICING.commissionCreditLimit,
+    // Older documents carry the limit under its first name, when it counted
+    // commission rather than the cash held. The number an operator tuned is
+    // worth keeping, so it is read across rather than reset to the default.
+    cashLimit: record.cashLimit ?? record.commissionCreditLimit ?? DEFAULT_PRICING.cashLimit,
+    requireHandover: record.requireHandover ?? DEFAULT_PRICING.requireHandover,
   };
 }
 

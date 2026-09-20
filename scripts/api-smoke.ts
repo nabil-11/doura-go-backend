@@ -18,6 +18,7 @@ import { hashOtpCode } from "@/lib/auth/mobile-token";
 import { connectToDatabase, disconnectFromDatabase } from "@/lib/db/connect";
 import { Driver } from "@/lib/db/models/driver";
 import { OtpChallenge } from "@/lib/db/models/otp-challenge";
+import { Pricing } from "@/lib/db/models/pricing";
 import { RefreshToken } from "@/lib/db/models/refresh-token";
 import { Ride } from "@/lib/db/models/ride";
 import { Rider } from "@/lib/db/models/rider";
@@ -29,6 +30,9 @@ function loadEnv() {
     // Variables may come from the shell instead.
   }
 }
+
+/** What the deployment had the handover switch set to before this run. */
+let handoverWasRequired: boolean | null = null;
 
 const { values: args } = parseArgs({
   options: { url: { type: "string", default: "http://localhost:3000" } },
@@ -392,17 +396,67 @@ async function main() {
     const arrived = await call("POST", `/rides/${rideId}/arrive`, { token: driverSession.accessToken });
     check("arrive → arriving", (arrived.body.ride as { status: string })?.status === "arriving", arrived.body);
 
-    const started = await call("POST", `/rides/${rideId}/start`, { token: driverSession.accessToken });
+    // ------------------------------------------------------- the handover ---
+    // Enforcement is an operator switch, so the run turns it on for itself and
+    // puts it back afterwards — otherwise the suite would only ever test
+    // whichever way this deployment happens to be set.
+    handoverWasRequired = (
+      await Pricing.findOne({ key: "default" }).lean<{ requireHandover?: boolean }>()
+    )?.requireHandover ?? true;
+    await Pricing.updateOne({ key: "default" }, { $set: { requireHandover: true } });
+
+    // The codes live with the rider; the driver has to be given them.
+    type Handovers = { start: { code: string; qr: string } | null; finish: { code: string; qr: string } | null };
+    const codeView = await call("GET", `/rides/${rideId}`, { token: rider.accessToken });
+    const codes = (codeView.body.ride as { handover: Handovers }).handover;
+    const startCode = codes?.start?.code ?? "";
+    const finishCode = codes?.finish?.code ?? "";
+    check("the rider is shown both handover codes",
+      /^\d{4}$/.test(startCode) && /^\d{4}$/.test(finishCode), codes);
+    check("the QR payload carries the ride and the code",
+      codes?.start?.qr === `DG1:${rideId}:start:${startCode}`, codes?.start?.qr);
+
+    const driverPeek = await call("GET", `/rides/${rideId}`, { token: driverSession.accessToken });
+    check("the driver is never shown the codes",
+      (driverPeek.body.ride as { handover: unknown }).handover === null,
+      (driverPeek.body.ride as { handover: unknown }).handover);
+
+    const noCode = await call("POST", `/rides/${rideId}/start`, { token: driverSession.accessToken });
+    check("starting without the rider's code is refused",
+      errorCode(noCode) === "handoverRequired", noCode.body);
+
+    const mistyped = await call("POST", `/rides/${rideId}/start`, {
+      token: driverSession.accessToken,
+      body: { code: startCode === "0000" ? "1111" : "0000" },
+    });
+    check("a wrong code is refused", errorCode(mistyped) === "handoverWrong", mistyped.body);
+
+    const started = await call("POST", `/rides/${rideId}/start`, {
+      token: driverSession.accessToken,
+      body: { code: startCode },
+    });
     check("start → in_progress", (started.body.ride as { status: string })?.status === "in_progress", started.body);
+
+    const spentView = await call("GET", `/rides/${rideId}`, { token: rider.accessToken });
+    check("a spent code stops being shown",
+      (spentView.body.ride as { handover: Handovers }).handover?.start === null,
+      (spentView.body.ride as { handover: Handovers }).handover);
 
     const tooLateToCancel = await call("POST", `/rides/${rideId}/cancel`, { token: rider.accessToken });
     check("the rider cannot cancel once on board",
       errorCode(tooLateToCancel) === "invalidTransition", tooLateToCancel.body);
 
     const before = (started.body.ride as { fare: { total: number } }).fare.total;
-    const completed = await call("POST", `/rides/${rideId}/complete`, {
+    const noFinishCode = await call("POST", `/rides/${rideId}/complete`, {
       token: driverSession.accessToken,
       body: { distanceKm: 6.5, durationMin: 20 },
+    });
+    check("finishing without the rider's code is refused",
+      errorCode(noFinishCode) === "handoverRequired", noFinishCode.body);
+
+    const completed = await call("POST", `/rides/${rideId}/complete`, {
+      token: driverSession.accessToken,
+      body: { distanceKm: 6.5, durationMin: 20, code: finishCode },
     });
     const finalRide = completed.body.ride as {
       status: string;
@@ -433,9 +487,21 @@ async function main() {
     check("the commission on a cash ride is added to what the driver owes",
       Math.abs((owing?.balance?.commissionDue ?? 0) - finalRide.fare.commission) < 0.001,
       { due: owing?.balance?.commissionDue, commission: finalRide.fare.commission });
+    check("the whole cash fare is added to what the driver is holding",
+      Math.abs((owing?.balance?.cashCollected ?? 0) - finalRide.fare.total) < 0.001,
+      { cash: owing?.balance?.cashCollected, fare: finalRide.fare.total });
 
-    const limit = (await call("GET", "/config")).body.pricing as { creditLimit?: number };
-    await Driver.updateOne({ _id: driverA._id }, { $set: { "balance.commissionDue": 100_000 } });
+    // The limit is on the cash held, so a large debt with little cash behind it
+    // must NOT stop the account — that is the whole point of the rule.
+    await Driver.updateOne({ _id: driverA._id },
+      { $set: { "balance.commissionDue": 100_000, "balance.cashCollected": 1 } });
+    const debtOnly = await call("GET", "/me", { token: driverSession.accessToken });
+    check("commission alone does not stop the account",
+      (debtOnly.body.driver as { balance: { blocked: boolean } })?.balance.blocked === false,
+      (debtOnly.body.driver as { balance: unknown })?.balance);
+
+    const limit = (await call("GET", "/config")).body.pricing as { cashLimit?: number };
+    await Driver.updateOne({ _id: driverA._id }, { $set: { "balance.cashCollected": 100_000 } });
 
     const overLimit = await call("GET", "/me", { token: driverSession.accessToken });
     check("the driver's own profile shows the account is stopped",
@@ -450,7 +516,8 @@ async function main() {
     check("a driver over the limit cannot go back online",
       errorCode(blockedOnline) === "commissionDue", blockedOnline.body);
 
-    await Driver.updateOne({ _id: driverA._id }, { $set: { "balance.commissionDue": 0 } });
+    await Driver.updateOne({ _id: driverA._id },
+      { $set: { "balance.commissionDue": 0, "balance.cashCollected": 0 } });
     const reopened = await call("POST", "/driver/availability", {
       token: driverSession.accessToken,
       body: { availability: "online", location: NEAR_PICKUP },
@@ -554,6 +621,12 @@ async function main() {
 }
 
 async function cleanUp() {
+  // The run turns handover enforcement on for itself; put it back, or a test
+  // would quietly change how the deployment behaves.
+  if (handoverWasRequired !== null) {
+    await Pricing.updateOne({ key: "default" }, { $set: { requireHandover: handoverWasRequired } });
+  }
+
   const drivers = await Driver.find({ lastName: `Test${RUN}` }).select("_id").lean();
   const driverIds = drivers.map((driver) => driver._id);
   const riders = await Rider.find({ phone: new RegExp(`^\\+2165${RUN}`) }).select("_id").lean();

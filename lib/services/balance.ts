@@ -6,7 +6,7 @@ import type { CurrentAdmin } from "@/lib/auth/dal";
 import { connectToDatabase } from "@/lib/db/connect";
 import { Driver, type DriverRecord } from "@/lib/db/models/driver";
 import { DriverPayment, type DriverPaymentRecord } from "@/lib/db/models/driver-payment";
-import { EMPTY_BALANCE, isOverCreditLimit, readBalance, type DriverBalance, type PaymentChannel } from "@/lib/domain/pricing";
+import { EMPTY_BALANCE, isOverCashLimit, readBalance, type DriverBalance, type PaymentChannel } from "@/lib/domain/pricing";
 import { DEFAULT_CURRENCY } from "@/lib/i18n/format";
 
 import { logActivity } from "./activity";
@@ -14,12 +14,14 @@ import type { ServiceResult } from "./drivers";
 import { getPricingValues } from "./pricing";
 
 /**
- * The commission a driver owes on cash rides, and how it gets settled.
+ * The cash a driver is carrying, the commission owed on it, and how it gets
+ * settled.
  *
- * The debt is the reason a driver comes into the office: they ride, they take
- * cash from riders, and Doura Go's share builds up until they pay it. Past the
- * limit set on the pricing page, the account stops taking rides — so this
- * number decides who is on the road.
+ * Riders pay in cash, so the whole fare stays in the driver's pocket and the
+ * platform's money piles up there between visits to the office. The limit set
+ * on the pricing page is on that cash — it is the exposure — while what the
+ * driver hands over is the commission on it. Past the limit the account stops
+ * taking rides, so these numbers decide who is on the road.
  */
 
 function round3(value: number) {
@@ -40,21 +42,31 @@ export type BalanceState = DriverBalance & {
 };
 
 export async function balanceState(driver: HasBalance, limit?: number): Promise<BalanceState> {
-  const creditLimit = limit ?? (await getPricingValues()).commissionCreditLimit;
+  const cashLimit = limit ?? (await getPricingValues()).cashLimit;
   const balance = balanceOf(driver);
   return {
     ...balance,
-    limit: creditLimit,
-    blocked: isOverCreditLimit(balance.commissionDue, creditLimit),
-    remaining: creditLimit > 0 ? Math.max(0, round3(creditLimit - balance.commissionDue)) : 0,
+    limit: cashLimit,
+    // The limit watches the cash in the driver's pocket, not the commission
+    // slice of it — see DriverBalance.
+    blocked: isOverCashLimit(balance, cashLimit),
+    remaining: cashLimit > 0 ? Math.max(0, round3(cashLimit - balance.cashCollected)) : 0,
     currency: DEFAULT_CURRENCY,
   };
 }
 
-/** Adds a completed ride's commission to what the driver owes. */
-export async function accrueCommission(driverId: Types.ObjectId, commission: number) {
-  if (commission <= 0) return;
-  await Driver.updateOne({ _id: driverId }, { $inc: { "balance.commissionDue": round3(commission) } });
+/** Books a completed cash ride: the fare into the pocket, our share as debt. */
+export async function accrueCashRide(driverId: Types.ObjectId, fare: number, commission: number) {
+  if (fare <= 0 && commission <= 0) return;
+  await Driver.updateOne(
+    { _id: driverId },
+    {
+      $inc: {
+        ...(fare > 0 ? { "balance.cashCollected": round3(fare) } : {}),
+        ...(commission > 0 ? { "balance.commissionDue": round3(commission) } : {}),
+      },
+    },
+  );
 }
 
 export type PaymentInput = {
@@ -88,6 +100,7 @@ export async function recordDriverPayment(
   if (!driver) return { ok: false, error: "notFound" };
 
   const dueBefore = round3(driver.balance?.commissionDue ?? 0);
+  const cashBefore = round3(driver.balance?.cashCollected ?? 0);
   if (input.expectedDue !== undefined && Math.abs(input.expectedDue - dueBefore) > 0.0005) {
     return { ok: false, error: "balanceChanged" };
   }
@@ -95,12 +108,22 @@ export async function recordDriverPayment(
 
   const applied = round3(Math.min(input.amount, dueBefore));
   const dueAfter = round3(dueBefore - applied);
+  // Settling the debt clears the cycle the cash belongs to, so the pocket
+  // empties with it — and a part payment empties it by the same fraction,
+  // which keeps the two in step without depending on the commission rate.
+  const cashAfter = dueBefore > 0 ? round3(cashBefore * (dueAfter / dueBefore)) : 0;
   const now = new Date();
 
   const updated = await Driver.findOneAndUpdate(
-    { _id: driverId, "balance.commissionDue": dueBefore },
+    // Both numbers are pinned: a ride completing between the read above and
+    // this write would otherwise have its cash silently wiped.
+    { _id: driverId, "balance.commissionDue": dueBefore, "balance.cashCollected": cashBefore },
     {
-      $set: { "balance.commissionDue": dueAfter, "balance.lastPaymentAt": now },
+      $set: {
+        "balance.commissionDue": dueAfter,
+        "balance.cashCollected": cashAfter,
+        "balance.lastPaymentAt": now,
+      },
       // A correction is bookkeeping, not money received, so it isn't counted.
       ...(input.channel === "adjustment" ? {} : { $inc: { "balance.paidTotal": applied } }),
     },
@@ -167,9 +190,13 @@ export async function listDriverPayments(driverId: string, limit = 10): Promise<
 /** Drivers currently stopped by the limit — the queue for the office. */
 export async function countDriversOverLimit(limit?: number) {
   await connectToDatabase();
-  const creditLimit = limit ?? (await getPricingValues()).commissionCreditLimit;
-  if (creditLimit <= 0) return 0;
-  return Driver.countDocuments({ status: "active", "balance.commissionDue": { $gte: creditLimit } });
+  const cashLimit = limit ?? (await getPricingValues()).cashLimit;
+  if (cashLimit <= 0) return 0;
+  return Driver.countDocuments({
+    status: "active",
+    "balance.cashCollected": { $gte: cashLimit },
+    "balance.commissionDue": { $gt: 0 },
+  });
 }
 
 export { EMPTY_BALANCE };

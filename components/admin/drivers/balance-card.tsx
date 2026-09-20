@@ -3,18 +3,20 @@ import { BanknoteIcon, OctagonAlertIcon } from "lucide-react";
 import { PaymentDialog } from "@/components/admin/drivers/payment-dialog";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { creditUsage } from "@/lib/domain/pricing";
+import { cashUsage } from "@/lib/domain/pricing";
 import type { Locale } from "@/lib/i18n/config";
 import type { Dictionary } from "@/lib/i18n/dictionaries/en";
 import { formatCurrency, formatDate, formatPercent, interpolate } from "@/lib/i18n/format";
 import type { BalanceState, PaymentEntry } from "@/lib/services/balance";
 
 /**
- * What a driver owes Doura Go, and the line they can't cross.
+ * How much of Doura Go's money a driver is carrying, and the line they can't
+ * cross.
  *
- * Cash rides leave the fare with the driver, so the commission is a debt that
- * grows with every trip. The bar is the whole story at a glance: how close they
- * are to the limit that takes them off the road.
+ * Cash rides leave the whole fare in the driver's pocket, so it piles up with
+ * every trip. The bar tracks that cash, because that is what the limit is set
+ * against; what they actually hand over to clear it is the commission on it,
+ * the smaller figure underneath.
  */
 export function BalanceCard({
   driverId,
@@ -35,7 +37,9 @@ export function BalanceCard({
 }) {
   const t = dict.admin.drivers.balance;
   const money = (value: number) => formatCurrency(locale, value, balance.currency);
-  const usage = creditUsage(balance.commissionDue, balance.limit);
+  // The gauge tracks the cash the driver is carrying, which is what the limit
+  // is set against; the amount they hand over is the commission on it.
+  const usage = cashUsage(balance.cashCollected, balance.limit);
 
   return (
     <Card>
@@ -49,8 +53,11 @@ export function BalanceCard({
       <CardContent className="space-y-5">
         <div className="flex items-end justify-between gap-4">
           <div>
-            <p className="text-xs text-muted-foreground">{t.due}</p>
-            <p className="tabular mt-1 text-3xl font-semibold">{money(balance.commissionDue)}</p>
+            <p className="text-xs text-muted-foreground">{t.cashHeld}</p>
+            <p className="tabular mt-1 text-3xl font-semibold">{money(balance.cashCollected)}</p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              {interpolate(t.dueOnIt, { amount: money(balance.commissionDue) })}
+            </p>
           </div>
           {balance.limit > 0 ? (
             <div className="text-end">

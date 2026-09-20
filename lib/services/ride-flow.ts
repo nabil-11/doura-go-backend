@@ -9,15 +9,21 @@ import { Driver, type DriverRecord } from "@/lib/db/models/driver";
 import { Ride, type RideRecord } from "@/lib/db/models/ride";
 import { Rider, type RiderRecord } from "@/lib/db/models/rider";
 import { DISPATCH } from "@/lib/domain/dispatch";
-import { estimateFare, isOverCreditLimit, type FareBreakdown } from "@/lib/domain/pricing";
+import { estimateFare, isOverCashLimit, type FareBreakdown } from "@/lib/domain/pricing";
 import { fromGeoPoint, haversineKm, toGeoPoint, type LatLng } from "@/lib/domain/geo";
+import { constantTimeEqual } from "@/lib/auth/mobile-token";
 import {
   DRIVER_RELEASABLE,
   FEE_BEARING_CANCELLATION,
   ONGOING_RIDE_STATUSES,
   RIDER_CANCELLABLE,
+  HANDOVER_ATTEMPTS,
   RIDE_STEPS,
+  STEP_HANDOVER,
+  handoverCode,
+  handoverPayload,
   rideCode,
+  type Handover,
   type PaymentMethod,
   type RideStatus,
   type RideStep,
@@ -100,6 +106,12 @@ export async function requestRide(input: {
       : undefined,
     fare: estimate.fare,
     paymentMethod: input.paymentMethod,
+    // Both codes exist from the start: the rider can be shown the pickup one
+    // the moment a driver is assigned, with no extra round trip.
+    handover: {
+      start: { code: handoverCode(), attempts: 0, usedAt: null },
+      finish: { code: handoverCode(), attempts: 0, usedAt: null },
+    },
     requestedAt: now,
     dispatch: { round: 0, candidates: [], declinedBy: [] },
   });
@@ -229,19 +241,70 @@ export async function acceptRide(driver: DriverRecord, rideId: string): Promise<
 }
 
 /**
- * Cash rides leave the commission with the driver, so it builds up as a debt.
- * Past the limit the office has set, the account stops taking rides until it
- * is settled — the check lives here so it guards every way onto the road.
+ * Cash rides leave the whole fare with the driver, so the platform's money
+ * piles up in their pocket. Once it reaches the limit the office has set, the
+ * account stops taking rides until it is settled — the check lives here so it
+ * guards every way onto the road.
+ *
+ * The limit is on the cash held; what the driver hands over is the commission
+ * owed on it, which is the smaller number reported alongside.
  */
 export async function assertCanRide(driver: DriverRecord) {
   const values = await getPricingValues();
+  const cash = driver.balance?.cashCollected ?? 0;
   const due = driver.balance?.commissionDue ?? 0;
-  if (!isOverCreditLimit(due, values.commissionCreditLimit)) return;
+  if (!isOverCashLimit({ cashCollected: cash, commissionDue: due }, values.cashLimit)) return;
   throw new ApiError("commissionDue", {
+    cash: cash.toFixed(3),
     due: due.toFixed(3),
-    limit: values.commissionCreditLimit.toFixed(3),
+    limit: values.cashLimit.toFixed(3),
     currency: values.currency,
   });
+}
+
+/**
+ * Checks the code the driver was given, and returns the fields that record the
+ * outcome on the ride.
+ *
+ * Wrong guesses are counted and the code burns out after a few, because four
+ * digits are only worth anything if they cannot be sat and guessed at. When
+ * that happens the rider is issued a fresh code rather than the ride being
+ * stuck — the pair are standing next to each other, and the answer is to read
+ * out the new one, not to abandon the trip.
+ */
+async function checkHandover(
+  ride: RideRecord,
+  handover: Handover,
+  supplied: string | undefined,
+  now: Date,
+): Promise<Record<string, unknown>> {
+  const expected = ride.handover?.[handover];
+  // A ride requested before handovers existed has no code to check. It would
+  // be wrong to strand it, so it passes and is stamped as it goes.
+  if (!expected?.code) return {};
+
+  // Turned off from the backoffice — for the window where the backend asks for
+  // a code and the driver app in people's hands cannot yet supply one.
+  const { requireHandover } = await getPricingValues();
+  if (!requireHandover) return { [`handover.${handover}.usedAt`]: now };
+
+  const code = supplied?.trim();
+  if (!code) throw new ApiError("handoverRequired");
+
+  if (!constantTimeEqual(code, expected.code)) {
+    const attempts = (expected.attempts ?? 0) + 1;
+    if (attempts >= HANDOVER_ATTEMPTS) {
+      await Ride.updateOne(
+        { _id: ride._id },
+        { $set: { [`handover.${handover}`]: { code: handoverCode(), attempts: 0, usedAt: null } } },
+      );
+      throw new ApiError("handoverLocked");
+    }
+    await Ride.updateOne({ _id: ride._id }, { $set: { [`handover.${handover}.attempts`]: attempts } });
+    throw new ApiError("handoverWrong", { remaining: String(HANDOVER_ATTEMPTS - attempts) });
+  }
+
+  return { [`handover.${handover}.usedAt`]: now };
 }
 
 export type StepResult = { ride: RideRecord; fareChanged: boolean };
@@ -255,7 +318,7 @@ export async function advanceRide(
   driver: DriverRecord,
   rideId: string,
   step: RideStep,
-  actuals?: { distanceKm?: number; durationMin?: number },
+  actuals?: { distanceKm?: number; durationMin?: number; code?: string },
 ): Promise<StepResult> {
   const transition = RIDE_STEPS[step];
   const from = transition.from as readonly RideStatus[];
@@ -268,6 +331,13 @@ export async function advanceRide(
   const now = new Date();
   const update: Record<string, unknown> = { status: transition.to };
   if (transition.stamp) update[transition.stamp] = now;
+
+  // Starting and finishing both need the rider's code. Checked before any of
+  // the fare work below, so a wrong code costs nothing and changes nothing.
+  const handover = STEP_HANDOVER[step];
+  if (handover) {
+    Object.assign(update, await checkHandover(current, handover, actuals?.code, now));
+  }
 
   let fareChanged = false;
   if (step === "complete") {
@@ -287,8 +357,10 @@ export async function advanceRide(
   if (!ride) throw new ApiError("invalidTransition");
 
   if (step === "complete") {
-    // On a cash ride the driver has the whole fare in hand, so the platform's
-    // share is added to what they owe rather than taken from anything.
+    // On a cash ride the driver has the whole fare in hand: the fare goes to
+    // the cash they are carrying — which is what the limit watches — and the
+    // platform's share to what they owe.
+    const cash = ride.paymentMethod === "cash" ? ride.fare.total : 0;
     const owed = ride.paymentMethod === "cash" ? ride.fare.commission : 0;
     await Promise.all([
       Driver.updateOne(
@@ -298,6 +370,7 @@ export async function advanceRide(
           $inc: {
             "stats.completedRides": 1,
             "stats.earnings": ride.fare.driverEarnings,
+            ...(cash > 0 ? { "balance.cashCollected": cash } : {}),
             ...(owed > 0 ? { "balance.commissionDue": owed } : {}),
           },
         },
@@ -485,6 +558,13 @@ function stop(value: RideRecord["pickup"]) {
  * included while the ride is happening: before a driver accepts there is nobody
  * to show, and once it is over neither side needs the other's number.
  */
+/** A code the rider still needs to show, with the payload for its QR. */
+function openHandover(ride: RideRecord, handover: Handover) {
+  const shake = ride.handover?.[handover];
+  if (!shake?.code || shake.usedAt) return null;
+  return { code: shake.code, qr: handoverPayload(String(ride._id), handover, shake.code) };
+}
+
 export function toRideResource(ride: RideRecord, party: Party | undefined, audience: "rider" | "driver") {
   const live = LIVE_STATUSES.includes(ride.status);
   const driver = party?.driver;
@@ -511,6 +591,20 @@ export function toRideResource(ride: RideRecord, party: Party | undefined, audie
     cancelledBy: ride.cancelledBy ?? null,
     cancellationReason: ride.cancellationReason ?? null,
     riderRating: ride.riderRating ?? null,
+
+    /**
+     * The codes the driver has to be given, and the string their QR encodes.
+     * Riders only: handing these to the driver's own app would defeat the
+     * point of them, which is that the two people were in the same place.
+     * Each disappears once it has been used.
+     */
+    handover:
+      audience === "rider" && live
+        ? {
+            start: openHandover(ride, "start"),
+            finish: openHandover(ride, "finish"),
+          }
+        : null,
 
     driver: driver
       ? {

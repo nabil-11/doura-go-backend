@@ -15,10 +15,23 @@ export interface RideStop {
   location: GeoPoint;
 }
 
+/**
+ * A code the rider holds and the driver has to obtain from them, plus how many
+ * wrong guesses are left. `usedAt` is set once it has done its job, so the same
+ * four digits can never move a ride twice.
+ */
+export type Handshake = { code: string; attempts: number; usedAt?: Date | null };
+
 export interface RideRecord {
   _id: Types.ObjectId;
   /** Short human-friendly reference, e.g. "DG-7F3K2Q" */
   code: string;
+  /**
+   * The two handovers. Shown only to the rider: the driver has to be given
+   * them face to face, which is what makes starting and finishing a ride
+   * evidence that the two were together.
+   */
+  handover?: { start: Handshake; finish: Handshake } | null;
   rider: Types.ObjectId;
   driver?: Types.ObjectId | null;
   city: string;
@@ -78,9 +91,22 @@ const stopSchema = new Schema<RideStop>(
   { _id: false },
 );
 
+const handshakeSchema = new Schema<Handshake>(
+  {
+    code: { type: String, required: true },
+    attempts: { type: Number, default: 0, min: 0 },
+    usedAt: { type: Date, default: null },
+  },
+  { _id: false },
+);
+
 const rideSchema = new Schema<RideRecord>(
   {
     code: { type: String, required: true, unique: true },
+    handover: {
+      start: handshakeSchema,
+      finish: handshakeSchema,
+    },
     rider: { type: Schema.Types.ObjectId, ref: "Rider", required: true, index: true },
     driver: { type: Schema.Types.ObjectId, ref: "Driver", default: null, index: true },
     city: { type: String, required: true },

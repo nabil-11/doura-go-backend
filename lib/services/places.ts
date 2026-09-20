@@ -1,5 +1,6 @@
 import "server-only";
 
+import { matchLocalPlaces } from "@/lib/config/places";
 import { cities } from "@/lib/config/site";
 import type { LatLng } from "@/lib/domain/geo";
 
@@ -66,8 +67,30 @@ export async function searchPlaces(query: string, near: LatLng | null, language:
   const hit = recall<Place[]>(key);
   if (hit) return hit;
 
-  const found = (googleKey() ? await googleSearch(trimmed, near, language) : null) ?? (await nominatimSearch(trimmed, language));
-  return remember(key, found);
+  // The neighbourhoods people actually name go first, and they cost nothing.
+  // A geocoder is built for addresses; "Lac 2" is not an address.
+  const local = matchLocalPlaces(trimmed, near).map(
+    (place): Place => ({ label: place.name, detail: place.area, point: { lat: place.lat, lng: place.lng } }),
+  );
+
+  const remote =
+    (googleKey() ? await googleSearch(trimmed, near, language) : null) ?? (await nominatimSearch(trimmed, language));
+
+  return remember(key, dedupe([...local, ...remote]).slice(0, 8));
+}
+
+/** Two providers naming one place is common; the first spelling wins. */
+function dedupe(places: Place[]): Place[] {
+  const kept: Place[] = [];
+  for (const place of places) {
+    const near = kept.some(
+      (other) =>
+        Math.abs(other.point.lat - place.point.lat) < 0.0015 &&
+        Math.abs(other.point.lng - place.point.lng) < 0.0015,
+    );
+    if (!near) kept.push(place);
+  }
+  return kept;
 }
 
 type GooglePlacesResponse = {
@@ -132,13 +155,34 @@ async function googleSearch(query: string, near: LatLng | null, language: string
 
 type NominatimResult = { display_name: string; lat: string; lon: string };
 
+/**
+ * Greater Tunis, as a box. Nominatim ranks what falls inside it first, which
+ * is what stops "Avenue Habib Bourguiba" answering with Sfax's.
+ */
+const VIEWBOX = "9.90,37.02,10.50,36.55";
+
 async function nominatimSearch(query: string, language: string): Promise<Place[]> {
+  const rows = await nominatimQuery(query, language);
+  // Nominatim matches the whole string or nothing, so a query that names a
+  // neighbourhood it has never heard of comes back empty. Naming the city
+  // gives it something it does know to anchor on.
+  const fallback = rows.length === 0 ? await nominatimQuery(`${query}, Tunis`, language) : [];
+  return [...rows, ...fallback].map((row) =>
+    splitDisplayName(row.display_name, Number(row.lat), Number(row.lon)),
+  );
+}
+
+async function nominatimQuery(query: string, language: string): Promise<NominatimResult[]> {
   const url = new URL("/search", NOMINATIM_URL);
   url.searchParams.set("format", "jsonv2");
   url.searchParams.set("q", query);
   url.searchParams.set("countrycodes", "tn");
   url.searchParams.set("limit", "6");
   url.searchParams.set("accept-language", language);
+  // Bias, not a filter: `bounded=0` still returns a match further out rather
+  // than nothing, which matters for a dropoff outside the service area.
+  url.searchParams.set("viewbox", VIEWBOX);
+  url.searchParams.set("bounded", "0");
 
   try {
     const response = await fetch(url, {
@@ -147,8 +191,7 @@ async function nominatimSearch(query: string, language: string): Promise<Place[]
       cache: "no-store",
     });
     if (!response.ok) return [];
-    const rows = (await response.json()) as NominatimResult[];
-    return rows.map((row) => splitDisplayName(row.display_name, Number(row.lat), Number(row.lon)));
+    return (await response.json()) as NominatimResult[];
   } catch {
     return [];
   }
