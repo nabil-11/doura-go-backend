@@ -22,8 +22,14 @@ export async function GET(request: NextRequest, context: RouteContext<"/api/admi
   const variant = request.nextUrl.searchParams.get("variant") === "original" ? "original" : "preview";
   const upstream = await fetch(signedFileUrl(file, variant), { cache: "no-store" });
   if (!upstream.ok) {
-    console.error(`[documents] ${variant} fetch failed`, upstream.status, upstream.headers.get("x-cld-error"));
-    return new Response(null, { status: 502 });
+    // A record pointing at a file the store does not have is a gap in the
+    // data, not a broken gateway — seeded demo drivers are the usual cause.
+    // 404 lets the page show "no document" instead of an error.
+    const missing = upstream.status === 404;
+    if (!missing) {
+      console.error(`[documents] ${variant} fetch failed`, upstream.status, upstream.headers.get("x-cld-error"));
+    }
+    return new Response(null, { status: missing ? 404 : 502 });
   }
 
   // Files are capped at 4 MB, so buffering keeps the response simple and atomic.
