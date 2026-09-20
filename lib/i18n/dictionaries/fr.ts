@@ -277,6 +277,9 @@ const fr: Dictionary = {
       googlePlay: "Google Play",
       downloadOn: "Télécharger dans l'",
       getItOn: "Disponible sur",
+      androidDirect: "Installer sur",
+      androidApk: "Android",
+      androidHint: "Pas encore sur Google Play — le fichier s'installe directement. Autorisez l'installation depuis votre navigateur quand Android le demande.",
     },
 
     driverApp: {

@@ -3,6 +3,7 @@ import {
   BadgeCheckIcon,
   BanknoteIcon,
   CheckIcon,
+  DownloadIcon,
   HardHatIcon,
   HeadsetIcon,
   MapPinIcon,
@@ -14,6 +15,8 @@ import {
   TimerIcon,
 } from "lucide-react";
 import Link from "next/link";
+
+import { RIDER_APK_PATH, formatBytes, riderApkInfo } from "@/lib/config/driver-app";
 
 import {
   Accordion,
@@ -383,10 +386,10 @@ export function FaqSection({ dict }: SectionProps) {
 
 export function AppCta({ dict, locale }: SectionProps) {
   const t = dict.site.appCta;
-  const stores = [
-    { top: t.downloadOn, name: t.appStore },
-    { top: t.getItOn, name: t.googlePlay },
-  ];
+  // Android is real and installable today, so it gets a link rather than a
+  // promise. iOS has no build yet and still says so — a badge that does
+  // nothing is worse than one that admits it isn't ready.
+  const android = riderApkInfo();
   return (
     <section id="app" className="scroll-mt-16 px-4 py-24 sm:px-6">
       <div className="relative mx-auto max-w-6xl overflow-hidden rounded-[2rem] bg-asphalt px-6 py-14 text-center text-white sm:px-12">
@@ -396,22 +399,48 @@ export function AppCta({ dict, locale }: SectionProps) {
           <h2 className="mx-auto max-w-2xl text-3xl leading-tight font-bold tracking-tight sm:text-4xl">{t.title}</h2>
           <p className="mx-auto mt-4 max-w-xl text-base text-white/65 sm:text-lg">{t.subtitle}</p>
           <div className="mt-9 flex flex-col items-center justify-center gap-3 sm:flex-row">
-            {stores.map((store) => (
-              <div
-                key={store.name}
-                className="flex min-w-48 items-center gap-3 rounded-xl border border-white/15 bg-black/40 px-4 py-2.5 text-start"
+            <div className="flex min-w-48 items-center gap-3 rounded-xl border border-white/15 bg-black/40 px-4 py-2.5 text-start">
+              <SmartphoneIcon className="size-6 text-white/80" aria-hidden="true" />
+              <span className="leading-tight">
+                <span className="block text-[0.7rem] text-white/60">{t.downloadOn}</span>
+                <span className="block text-base font-semibold">{t.appStore}</span>
+              </span>
+              <span className="ms-auto rounded-full bg-white/15 px-2 py-0.5 text-[0.65rem] font-bold text-white/80">
+                {dict.common.comingSoon}
+              </span>
+            </div>
+
+            {android.available ? (
+              <a
+                href={RIDER_APK_PATH}
+                download
+                className="flex min-w-48 items-center gap-3 rounded-xl border border-brand/40 bg-brand/10 px-4 py-2.5 text-start transition hover:border-brand hover:bg-brand/20"
               >
-                <SmartphoneIcon className="size-6 text-white/80" aria-hidden="true" />
+                <DownloadIcon className="size-6 text-brand" aria-hidden="true" />
                 <span className="leading-tight">
-                  <span className="block text-[0.7rem] text-white/60">{store.top}</span>
-                  <span className="block text-base font-semibold">{store.name}</span>
+                  <span className="block text-[0.7rem] text-white/60">{t.androidDirect}</span>
+                  <span className="block text-base font-semibold">{t.androidApk}</span>
                 </span>
                 <span className="ms-auto rounded-full bg-brand px-2 py-0.5 text-[0.65rem] font-bold text-asphalt">
+                  {formatBytes(android.bytes)}
+                </span>
+              </a>
+            ) : (
+              <div className="flex min-w-48 items-center gap-3 rounded-xl border border-white/15 bg-black/40 px-4 py-2.5 text-start">
+                <SmartphoneIcon className="size-6 text-white/80" aria-hidden="true" />
+                <span className="leading-tight">
+                  <span className="block text-[0.7rem] text-white/60">{t.getItOn}</span>
+                  <span className="block text-base font-semibold">{t.googlePlay}</span>
+                </span>
+                <span className="ms-auto rounded-full bg-white/15 px-2 py-0.5 text-[0.65rem] font-bold text-white/80">
                   {dict.common.comingSoon}
                 </span>
               </div>
-            ))}
+            )}
           </div>
+          {android.available ? (
+            <p className="mt-3 text-xs text-white/50">{t.androidHint}</p>
+          ) : null}
           <Button asChild variant="link" className="mt-6 text-brand">
             <Link href={`/${locale}/drive`}>
               {dict.site.nav.becomeDriver}

@@ -257,6 +257,9 @@ const ar: Dictionary = {
       googlePlay: "Google Play",
       downloadOn: "حمّله من",
       getItOn: "احصل عليه من",
+      androidDirect: "التثبيت على",
+      androidApk: "أندرويد",
+      androidHint: "ليس على ⁦Google Play⁩ بعد — يُثبَّت الملف مباشرة. اسمح بالتثبيت من المتصفّح عندما يطلب أندرويد ذلك.",
     },
 
     driverApp: {

@@ -256,6 +256,9 @@ const en = {
       googlePlay: "Google Play",
       downloadOn: "Download on the",
       getItOn: "Get it on",
+      androidDirect: "Install on",
+      androidApk: "Android",
+      androidHint: "Not on Google Play yet — the file installs directly. Allow installs from your browser when Android asks.",
     },
 
     driverApp: {
