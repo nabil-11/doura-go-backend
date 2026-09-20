@@ -10,7 +10,7 @@ import { Ride, type RideRecord } from "@/lib/db/models/ride";
 import { Rider, type RiderRecord } from "@/lib/db/models/rider";
 import { DISPATCH } from "@/lib/domain/dispatch";
 import { estimateFare, isOverCreditLimit, type FareBreakdown } from "@/lib/domain/pricing";
-import { estimateRoute, fromGeoPoint, haversineKm, toGeoPoint, type LatLng } from "@/lib/domain/geo";
+import { fromGeoPoint, haversineKm, toGeoPoint, type LatLng } from "@/lib/domain/geo";
 import {
   DRIVER_RELEASABLE,
   FEE_BEARING_CANCELLATION,
@@ -24,6 +24,7 @@ import {
 } from "@/lib/domain/ride";
 
 import { dispatchRide, refreshDispatch } from "./dispatch";
+import { getRoute, type Route } from "./routing";
 import { getPricingValues } from "./pricing";
 import { paginate, type Paginated } from "./query";
 
@@ -45,6 +46,9 @@ export type RideEstimate = {
   durationMin: number;
   fare: FareBreakdown;
   cancellationFee: number;
+  /** The path along the streets, so the rider sees the trip, not a chord. */
+  route: LatLng[];
+  routeSource: Route["source"];
 };
 
 /** Prices a trip before it is requested. Nothing is written. */
@@ -52,14 +56,15 @@ export async function estimateRide(pickup: LatLng, dropoff: LatLng): Promise<Rid
   const city = cityForPoint(pickup);
   if (!city) throw new ApiError("outsideServiceArea");
 
-  const route = estimateRoute(pickup, dropoff);
-  const values = await getPricingValues();
+  const [route, values] = await Promise.all([getRoute(pickup, dropoff), getPricingValues()]);
   return {
     city: city.id,
     distanceKm: route.distanceKm,
     durationMin: route.durationMin,
     fare: estimateFare(values, route.distanceKm, route.durationMin),
     cancellationFee: values.cancellationFee,
+    route: route.geometry,
+    routeSource: route.source,
   };
 }
 
@@ -90,6 +95,9 @@ export async function requestRide(input: {
     dropoff: { address: input.dropoff.address, location: toGeoPoint(input.dropoff) },
     distanceKm: estimate.distanceKm,
     durationMin: estimate.durationMin,
+    route: estimate.route.length
+      ? { coordinates: estimate.route.map((point) => [point.lng, point.lat] as [number, number]), source: estimate.routeSource }
+      : undefined,
     fare: estimate.fare,
     paymentMethod: input.paymentMethod,
     requestedAt: now,
@@ -491,6 +499,7 @@ export function toRideResource(ride: RideRecord, party: Party | undefined, audie
     dropoff: stop(ride.dropoff),
     distanceKm: ride.distanceKm,
     durationMin: ride.durationMin,
+    route: (ride.route?.coordinates ?? []).map(([lng, lat]) => ({ lat, lng })),
     fare: ride.fare,
     paymentMethod: ride.paymentMethod,
     cancellationFee: ride.cancellationFee ?? null,

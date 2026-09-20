@@ -38,6 +38,9 @@ JWT_SECRET=…                          # 64 random bytes, hex (see below)
 CLOUDINARY_URL=cloudinary://key:secret@cloud   # optional: file uploads
 NEXT_PUBLIC_SITE_URL=https://douragoo.tn       # optional: canonical URLs, sitemap
 MOBILE_APP_ORIGINS=https://app.douragoo.tn     # optional: extra CORS origins for the apps
+GOOGLE_MAPS_API_KEY=                           # optional: switches maps, routes and search to Google
+ROUTING_URL=https://router.project-osrm.org    # optional: your own OSRM
+GEOCODER_URL=https://nominatim.openstreetmap.org  # optional: your own Nominatim
 NEXT_PUBLIC_MAP_TILES=https://…/{z}/{x}/{y}.png  # optional: your own map tiles
 SMS_PROVIDER=                                  # unset: codes are logged, not sent
 TEST_PHONE_NUMBERS=+216…:123456                # optional: demo accounts, no SMS
@@ -181,12 +184,34 @@ payment on the driver's page — usually the whole balance, which reopens the
 account on the spot — and every settlement is a ledger row with the balance
 before and after, not just a number that moved.
 
-**Maps.** Leaflet with OpenStreetMap tiles: no API key, no quota, and the same
-component in the backoffice and both apps. Fine for a team and a launch;
-point `NEXT_PUBLIC_MAP_TILES` at your own or a paid provider before the traffic
-grows. Distances and durations are estimated from straight-line distance with a
-road factor (`lib/domain/geo.ts`) — one function to replace when a routing
-provider is worth paying for.
+**Maps, routes and addresses.** A ride is priced on the streets it actually
+follows, not the line between its ends — in Tunis the difference is routinely
+half again as far. `lib/services/routing.ts` asks a routing engine for the path,
+`lib/services/places.ts` turns words into places and back, and both pick their
+provider from what is configured:
+
+| | With `GOOGLE_MAPS_API_KEY` | Without |
+| --- | --- | --- |
+| Routes | Google Routes API, traffic-aware | OSRM |
+| Address search | Google Places | Nominatim |
+| Reverse geocoding | Google Geocoding | Nominatim |
+| Map tiles | Google, in the apps | OpenStreetMap |
+
+Google's data in Tunisia is well ahead — place names and business listings
+especially, which is what the destination field lives on — but it needs a
+billing account and costs per request. Without a key everything still works,
+which is why the apps run the moment they are cloned. Either way a provider
+that times out falls back to a straight-line estimate rather than blocking a
+booking: a rider who can't be quoted can't ride.
+
+**Address lookup runs here, not in the apps.** A key shipped inside a phone app
+can be pulled out of the bundle and spent by anyone, so the apps call
+`/api/v1/geo/*` and the key stays on the server. The one exception is drawing
+the map itself, which needs a browser key — restrict that one to the app's
+bundle id and to the Maps JavaScript API alone.
+
+Enable four APIs in Google Cloud if you go that way: **Routes**, **Places (New)**,
+**Geocoding**, and **Maps JavaScript** for the apps.
 
 **Documents are private.** The profile photo is public (riders see it in the app).
 ID card, license, registration and insurance are uploaded to Cloudinary as
@@ -240,10 +265,13 @@ status is shown with an icon and a label, never colour alone.
   `lib/i18n/dictionaries/*` and `lib/config/site.ts` — adapt them before launch.
 - **No SMS provider.** Verification codes are logged, not sent. One branch in
   `lib/notifications/sms.ts` and sign-in works for real.
-- **Routing is estimated**, not routed: straight-line distance × a road factor
-  (`lib/domain/geo.ts`). Good enough to price a ride, not to navigate one.
-- **Map tiles** come from OpenStreetMap's public servers. Fine for a backoffice
-  and a launch; get your own before the apps have real traffic.
+- **The free providers are demo services.** OSRM's public router, Nominatim and
+  OpenStreetMap's tiles all work and cost nothing, but none of them promise
+  uptime or allow heavy traffic. Self-host them (`ROUTING_URL`, `GEOCODER_URL`,
+  `NEXT_PUBLIC_MAP_TILES`) or add a Google key before launch.
+- **The backoffice stays on Leaflet** even with a Google key: it is an internal
+  tool used by a handful of people, and a paid map load per staff page view
+  buys nothing.
 - **Cloudinary** is shared with another project in this checkout (`rentify-v1`);
   Doura Go files live under the `doura-go/` prefix. A dedicated account is cleaner
   for production.

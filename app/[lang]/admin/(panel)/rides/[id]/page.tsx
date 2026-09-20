@@ -97,7 +97,7 @@ export default async function RidePage({ params }: PageProps<"/[lang]/admin/ride
                     { id: "pickup", kind: "pickup", title: t.pickup, meta: ride.pickup, ...ride.pickupPoint },
                     { id: "dropoff", kind: "dropoff", title: t.dropoff, meta: ride.dropoff, ...ride.dropoffPoint },
                   ]}
-                  route={[ride.pickupPoint, ride.dropoffPoint]}
+                  route={ride.route.length ? ride.route : [ride.pickupPoint, ride.dropoffPoint]}
                 />
               ) : null}
             </CardContent>

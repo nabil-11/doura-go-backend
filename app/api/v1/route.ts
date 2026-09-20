@@ -22,6 +22,7 @@ export const GET = apiRoute(async () =>
         "POST /api/v1/auth/logout",
       ],
       account: ["GET /api/v1/me", "PATCH /api/v1/me"],
+      places: ["GET /api/v1/geo/search", "GET /api/v1/geo/reverse", "GET /api/v1/geo/route"],
       rider: [
         "POST /api/v1/rides/estimate",
         "POST /api/v1/rides",

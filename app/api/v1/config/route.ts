@@ -3,6 +3,7 @@ import { apiRoute } from "@/lib/api/route";
 import { cities } from "@/lib/config/site";
 import { DISPATCH, MAX_SEARCH_SECONDS } from "@/lib/domain/dispatch";
 import { ENABLED_PAYMENT_METHODS } from "@/lib/domain/ride";
+import { placesProvider } from "@/lib/services/places";
 import { getPricing } from "@/lib/services/pricing";
 
 /**
@@ -25,6 +26,8 @@ export const GET = apiRoute(async () => {
       cancellationFee: values.cancellationFee,
       updatedAt,
     },
+    /** Which geocoder is answering /geo/* — "google" or "osm". */
+    places: placesProvider(),
     search: {
       radiusKm: DISPATCH.radiusKm,
       offerSeconds: DISPATCH.offerSeconds,

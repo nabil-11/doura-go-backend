@@ -21,7 +21,7 @@ export type MapMarker = {
 
 export type MapCanvasProps = {
   markers: MapMarker[];
-  /** Drawn as a dashed line between the points, in order. */
+  /** The path to draw, in order: a routed path, or two points for a chord. */
   route?: { lat: number; lng: number }[];
   center?: { lat: number; lng: number };
   zoom?: number;
@@ -143,17 +143,25 @@ export default function MapCanvas({
     }
 
     if (route && route.length > 1) {
-      group.addLayer(
-        L.polyline(
-          route.map((point) => [point.lat, point.lng] as [number, number]),
-          { color: "#0f1115", weight: 3, opacity: 0.55, dashArray: "6 8" },
-        ),
-      );
+      const line = route.map((point) => [point.lat, point.lng] as [number, number]);
+      // Two points mean nothing was routed and this is the chord between them,
+      // so it stays dashed — a real path along streets is drawn solid, with a
+      // dark casing under it so it reads over any colour of map.
+      if (route.length === 2) {
+        group.addLayer(L.polyline(line, { color: "#0f1115", weight: 3, opacity: 0.5, dashArray: "6 8" }));
+      } else {
+        group.addLayer(L.polyline(line, { color: "#0f1115", weight: 7, opacity: 0.35, lineCap: "round" }));
+        group.addLayer(L.polyline(line, { color: "#e0ae00", weight: 4, opacity: 1, lineCap: "round" }));
+      }
     }
 
     // Frame whatever there is: several points get a fitted view, one gets
-    // centred, none leaves the map where it was.
-    const points = markers.map((marker) => [marker.lat, marker.lng] as [number, number]);
+    // centred, none leaves the map where it was. The route counts — a path that
+    // loops around a one-way system reaches past both of its pins.
+    const points = [
+      ...markers.map((marker) => [marker.lat, marker.lng] as [number, number]),
+      ...(route ?? []).map((point) => [point.lat, point.lng] as [number, number]),
+    ];
     if (points.length > 1) {
       instance.fitBounds(L.latLngBounds(points), { padding: [48, 48], maxZoom: 15 });
     } else if (points.length === 1) {

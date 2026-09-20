@@ -87,3 +87,28 @@ export const pageQuerySchema = z.object({
   page: z.coerce.number().int().min(1).max(10_000).default(1),
   pageSize: z.coerce.number().int().min(1).max(50).default(20),
 });
+
+// ------------------------------------------------------------------- places ---
+
+const language = z.enum(["fr", "ar", "en"]).default("fr");
+
+export const placeSearchSchema = z.object({
+  q: z.string().trim().min(3, "at least 3 characters").max(120),
+  /** Optional bias: results near the rider beat results near the country. */
+  lat: z.coerce.number().min(-90).max(90).optional(),
+  lng: z.coerce.number().min(-180).max(180).optional(),
+  lang: language,
+});
+
+export const reverseGeocodeSchema = z.object({
+  lat: z.coerce.number().min(-90).max(90),
+  lng: z.coerce.number().min(-180).max(180),
+  lang: language,
+});
+
+export const routeQuerySchema = z.object({
+  fromLat: z.coerce.number().min(-90).max(90),
+  fromLng: z.coerce.number().min(-180).max(180),
+  toLat: z.coerce.number().min(-90).max(90),
+  toLng: z.coerce.number().min(-180).max(180),
+});

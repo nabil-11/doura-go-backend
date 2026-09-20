@@ -34,6 +34,8 @@ export type RideDetail = RideListItem & {
   city: string;
   pickupPoint: LatLng | null;
   dropoffPoint: LatLng | null;
+  /** The streets the ride was priced on, in order. */
+  route: LatLng[];
   distanceKm: number;
   durationMin: number;
   fare: RideRecord["fare"];
@@ -144,6 +146,7 @@ export async function getRide(id: string): Promise<RideDetail | null> {
     city: ride.city,
     pickupPoint: fromGeoPoint(ride.pickup.location),
     dropoffPoint: fromGeoPoint(ride.dropoff.location),
+    route: (ride.route?.coordinates ?? []).map(([lng, lat]) => ({ lat, lng })),
     distanceKm: ride.distanceKm,
     durationMin: ride.durationMin,
     fare: ride.fare,

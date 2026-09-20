@@ -27,6 +27,13 @@ export interface RideRecord {
   dropoff: RideStop;
   distanceKm: number;
   durationMin: number;
+  /**
+   * The path along the streets, as it was when the ride was priced. Stored so
+   * the apps and the backoffice can draw it without asking the router again —
+   * and so a fare queried months later can be checked against the route it was
+   * actually based on.
+   */
+  route?: { coordinates: [number, number][]; source: string } | null;
   fare: {
     base: number;
     distance: number;
@@ -80,6 +87,11 @@ const rideSchema = new Schema<RideRecord>(
     dropoff: { type: stopSchema, required: true },
     distanceKm: { type: Number, required: true, min: 0 },
     durationMin: { type: Number, required: true, min: 0 },
+    route: {
+      // [longitude, latitude] pairs, the order every mapping tool expects.
+      coordinates: { type: [[Number]], default: undefined },
+      source: { type: String, default: undefined },
+    },
     fare: {
       base: { type: Number, required: true },
       distance: { type: Number, required: true },
