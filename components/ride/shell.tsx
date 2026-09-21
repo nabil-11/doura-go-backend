@@ -63,15 +63,36 @@ export const SHEET_INSET = 0.46;
 /** Fills the window under the sticky site header. */
 const STAGE_HEIGHT = "min-h-[calc(100svh-4rem)]";
 
-export function Stage({ map, children }: { map: React.ReactNode; children: React.ReactNode }) {
+/**
+ * Map behind, sheet in front.
+ *
+ * On a phone the stage is exactly one screen — never `min-h` — and the sheet is
+ * anchored to the bottom of it with a ceiling on how much it may take. That
+ * ceiling is the whole point: a picker with a search box, a list of results and
+ * a pin card is easily taller than a phone, and without a limit it grows over
+ * the map until there is nothing left to aim with. The sheet scrolls inside
+ * itself instead, so a slice of map is always visible and always draggable.
+ *
+ * `tall` is for the screens that are mostly reading — a list of results. A
+ * screen whose job is to point at something on the map asks for the opposite.
+ */
+export function Stage({
+  map,
+  children,
+  tall = true,
+}: {
+  map: React.ReactNode;
+  children: React.ReactNode;
+  tall?: boolean;
+}) {
   return (
     <div className={cn("relative isolate lg:grid lg:grid-cols-[minmax(0,1fr)_27rem]", STAGE_HEIGHT)}>
       <div className="absolute inset-0 lg:relative lg:inset-auto lg:h-[calc(100svh-4rem)]">{map}</div>
       <div
         className={cn(
-          "relative z-10 flex flex-col justify-end p-3 sm:p-4",
-          STAGE_HEIGHT,
-          "lg:h-[calc(100svh-4rem)] lg:min-h-0 lg:justify-start lg:overflow-y-auto lg:border-s lg:bg-background lg:p-6",
+          "absolute inset-x-0 bottom-0 z-10 flex flex-col justify-end overflow-y-auto overscroll-contain p-3 sm:p-4",
+          tall ? "max-h-[72%]" : "max-h-[46%]",
+          "lg:static lg:max-h-none lg:h-[calc(100svh-4rem)] lg:justify-start lg:overflow-y-auto lg:border-s lg:bg-background lg:p-6",
         )}
       >
         {children}

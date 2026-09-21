@@ -23,7 +23,7 @@ import {
 } from "@/lib/ride/api";
 import { rememberPlace } from "@/lib/ride/recent-places";
 
-import { PickPanel } from "./pick-point";
+import { PickPanel, type PickMode } from "./pick-point";
 import {
   Notice,
   Panel,
@@ -100,6 +100,8 @@ export function BookScreen({ copy, common, locale, config, rider, onRequested, o
   const [seedRound, setSeedRound] = useState(0);
   /** The middle of the map while the pin is being dragged. */
   const [pin, setPin] = useState<LatLng | null>(null);
+  /** Typing an address, or aiming the map. The sheet's height follows it. */
+  const [pickMode, setPickMode] = useState<PickMode>("search");
 
   /** The last answer, kept with the question it answers. */
   const [priced, setPriced] = useState<Priced | null>(null);
@@ -174,7 +176,7 @@ export function BookScreen({ copy, common, locale, config, rider, onRequested, o
     return () => controller.abort();
   }, [trip, pickup, dropoff, copy]);
 
-  function startPicking(stop: Stop) {
+  function startPicking(stop: Stop, mode: PickMode = "search") {
     // The dropoff picker opens over the pickup the first time: a destination is
     // almost always near where the rider is standing, not in the next city.
     const start = (stop === "pickup" ? pickup : (dropoff ?? pickup)) ?? centre;
@@ -182,6 +184,7 @@ export function BookScreen({ copy, common, locale, config, rider, onRequested, o
     setPin({ lat: start.lat, lng: start.lng });
     setSeedRound((round) => round + 1);
     setLocationError(null);
+    setPickMode(mode);
     setPicking(stop);
   }
 
@@ -198,7 +201,7 @@ export function BookScreen({ copy, common, locale, config, rider, onRequested, o
    * obvious thing rather than asking which one was meant.
    */
   function pickOnMap() {
-    startPicking(pickup ? "dropoff" : "pickup");
+    startPicking(pickup ? "dropoff" : "pickup", "map");
   }
 
   /** "My position", from the book panel: it becomes the pickup. */
@@ -278,7 +281,7 @@ export function BookScreen({ copy, common, locale, config, rider, onRequested, o
   );
 
   return (
-    <Stage map={map}>
+    <Stage map={map} tall={!picking || pickMode === "search"}>
       <Panel>
         {picking ? (
           <PickPanel
@@ -293,6 +296,8 @@ export function BookScreen({ copy, common, locale, config, rider, onRequested, o
             onLocate={locateForPin}
             onCancel={() => setPicking(null)}
             onPick={choose}
+            mode={pickMode}
+            onMode={setPickMode}
           />
         ) : (
           <div className="flex flex-col gap-4">

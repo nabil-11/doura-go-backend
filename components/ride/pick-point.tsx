@@ -9,6 +9,7 @@ import { Spinner } from "@/components/ui/spinner";
 import type { Locale } from "@/lib/i18n/config";
 import { describePoint, searchPlaces, type ChosenPoint, type LatLng, type Place } from "@/lib/ride/api";
 import { recentPlaces } from "@/lib/ride/recent-places";
+import { cn } from "@/lib/utils";
 
 import { Notice, isAborted, messageFor, type CommonCopy, type RideCopy } from "./shell";
 
@@ -41,7 +42,13 @@ type Props = {
   onLocate: () => void;
   onCancel: () => void;
   onPick: (point: ChosenPoint) => void;
+  /** Which half is showing, so the sheet above can size itself to it. */
+  mode: PickMode;
+  onMode: (mode: PickMode) => void;
 };
+
+/** Typing an address, or aiming the map at a point. */
+export type PickMode = "search" | "map";
 
 /**
  * Choosing a point: type an address, take one used before, or read the street
@@ -65,6 +72,8 @@ export function PickPanel({
   onLocate,
   onCancel,
   onPick,
+  mode,
+  onMode,
 }: Props) {
   const t = copy.book;
   const [query, setQuery] = useState("");
@@ -149,7 +158,21 @@ export function PickPanel({
         <h2 className="text-base font-semibold">{title}</h2>
       </div>
 
-      <div className="relative">
+      {/* Two ways to name a place, and they want opposite amounts of screen:
+          a list of results wants height, aiming at a rooftop wants the map.
+          Picking one at a time is what lets the sheet shrink out of the way. */}
+      <div role="tablist" aria-label={title} className="grid grid-cols-2 gap-1 rounded-xl bg-muted p-1">
+        <ModeTab selected={mode === "search"} onClick={() => onMode("search")}>
+          <SearchIcon className="size-4" aria-hidden="true" />
+          {t.searchPlaceholder}
+        </ModeTab>
+        <ModeTab selected={mode === "map"} onClick={() => onMode("map")}>
+          <MapIcon className="size-4" aria-hidden="true" />
+          {t.pinOnMap}
+        </ModeTab>
+      </div>
+
+      <div className={cn("relative", mode === "map" && "hidden")}>
         <SearchIcon
           className="pointer-events-none absolute top-1/2 start-3 size-4 -translate-y-1/2 text-muted-foreground"
           aria-hidden="true"
@@ -168,7 +191,7 @@ export function PickPanel({
 
       <Notice message={searchError ?? locationError} />
 
-      <div className="max-h-56 min-h-0 overflow-y-auto lg:max-h-[34vh]">
+      <div className={cn("max-h-56 min-h-0 overflow-y-auto lg:max-h-[34vh]", mode === "map" && "hidden")}>
         {results.length > 0 ? (
           <ul className="space-y-1">
             {results.map((place) => (
@@ -205,14 +228,7 @@ export function PickPanel({
         {!showRecents && !asking ? <p className="px-1 py-3 text-sm text-muted-foreground">{t.searchHint}</p> : null}
       </div>
 
-      {/* Naming this is what tells a rider the map is theirs to move. Without
-          a heading it reads as a status line about a pin they did not know
-          they had. */}
-      <div className="rounded-xl border bg-muted/40 p-3">
-        <p className="mb-2 flex items-center gap-2 text-xs font-medium tracking-wide text-muted-foreground uppercase">
-          <MapIcon className="size-3.5" aria-hidden="true" />
-          {t.pinOnMap}
-        </p>
+      <div className={cn("rounded-xl border bg-muted/40 p-3", mode === "search" && "hidden lg:block")}>
         <p className="flex items-start gap-2 text-sm" aria-live="polite">
           <MapPinIcon className="mt-0.5 size-4 shrink-0 text-brand-deep" aria-hidden="true" />
           <span className="min-w-0">
@@ -239,6 +255,31 @@ export function PickPanel({
         </div>
       </div>
     </div>
+  );
+}
+
+function ModeTab({
+  selected,
+  onClick,
+  children,
+}: {
+  selected: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      role="tab"
+      aria-selected={selected}
+      onClick={onClick}
+      className={cn(
+        "flex h-9 items-center justify-center gap-2 rounded-lg px-2 text-sm font-medium transition",
+        selected ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground",
+      )}
+    >
+      {children}
+    </button>
   );
 }
 
