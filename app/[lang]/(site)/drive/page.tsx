@@ -43,6 +43,15 @@ export default async function DrivePage() {
               <ArrowDownIcon />
             </Link>
           </Button>
+          {/* Already approved? The application form below is not for you. */}
+          <p className="mt-5 text-sm text-white/55">
+            <Link
+              href={`/${locale}/driver`}
+              className="font-semibold text-brand underline-offset-4 hover:underline"
+            >
+              {dict.site.nav.driverSpace}
+            </Link>
+          </p>
         </div>
       </section>
 

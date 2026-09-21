@@ -95,6 +95,9 @@ export const STEP_HANDOVER: Partial<Record<RideStep, Handover>> = {
   complete: "finish",
 };
 
+/** What a handover code looks like, for whoever is checking one. */
+export const HANDOVER_CODE_PATTERN = /^\d{4}$/;
+
 /** Four digits: short enough to read out over a running engine. */
 export function handoverCode() {
   // Rejection-free and unbiased: 0000–9999 straight from four random digits.
@@ -120,6 +123,6 @@ export function parseHandoverPayload(scanned: string) {
   if (parts.length !== 4 || parts[0] !== "DG1") return null;
   const [, rideId, handover, code] = parts;
   if (!HANDOVERS.includes(handover as Handover)) return null;
-  if (!/^\d{4}$/.test(code)) return null;
+  if (!HANDOVER_CODE_PATTERN.test(code)) return null;
   return { rideId, handover: handover as Handover, code };
 }

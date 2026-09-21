@@ -66,18 +66,32 @@ function section(title: string) {
   console.log(`\n${title}`);
 }
 
-type Reply = { status: number; body: Record<string, never> & Record<string, unknown> };
+type Reply = {
+  status: number;
+  body: Record<string, never> & Record<string, unknown>;
+  /** What the response asked the browser to store, for the web session checks. */
+  cookies: string[];
+};
 
 async function call(
   method: string,
   path: string,
-  options: { token?: string; body?: unknown } = {},
+  options: {
+    token?: string;
+    body?: unknown;
+    /** A browser session instead of a bearer token: `name=value`. */
+    cookie?: string;
+    /** Which web app is asking. The apps share an origin and two cookies. */
+    space?: "rider" | "driver";
+  } = {},
 ): Promise<Reply> {
   const response = await fetch(BASE + path, {
     method,
     headers: {
       ...(options.body === undefined ? {} : { "content-type": "application/json" }),
       ...(options.token ? { authorization: `Bearer ${options.token}` } : {}),
+      ...(options.cookie ? { cookie: options.cookie } : {}),
+      ...(options.space ? { "x-dg-space": options.space } : {}),
     },
     body: options.body === undefined ? undefined : JSON.stringify(options.body),
   });
@@ -88,7 +102,15 @@ async function call(
   } catch {
     body = { raw: text.slice(0, 200) };
   }
-  return { status: response.status, body: body as Reply["body"] };
+  return { status: response.status, body: body as Reply["body"], cookies: response.headers.getSetCookie() };
+}
+
+/** Pulls one `name=value` out of a Set-Cookie list, ignoring its attributes. */
+function cookieFrom(reply: Reply, name: string) {
+  const header = reply.cookies.find((value) => value.startsWith(`${name}=`));
+  const pair = header?.split(";")[0];
+  // An expiry in the past is a deletion, not a session.
+  return pair && !pair.endsWith("=") ? pair : null;
 }
 
 function errorCode(reply: Reply) {
@@ -266,6 +288,64 @@ async function main() {
 
     const crossAudience = await call("GET", "/driver/offers", { token: rider.accessToken });
     check("a rider token is refused on driver endpoints", crossAudience.status === 403, crossAudience.status);
+
+    // -------------------------------------------------------- web sessions ---
+    // A browser has nowhere safe to keep a token, so both web apps carry an
+    // httpOnly cookie instead. Two cookies and two audiences on one origin,
+    // which makes "can this cookie open that door" the thing worth proving.
+    section("Web sessions");
+
+    const riderWeb = await call("POST", "/auth/web", {
+      body: { phone: riderPhone, code: await plantCode(riderPhone, "rider") },
+    });
+    const riderCookie = cookieFrom(riderWeb, "dg_rider") ?? "";
+    check("a rider signing in on the website gets a cookie and no token",
+      riderWeb.status === 200 && riderCookie !== "" && riderWeb.body.accessToken === undefined,
+      riderWeb.body);
+
+    const riderWebMe = await call("GET", "/me", { cookie: riderCookie });
+    check("the rider cookie opens the rider's own account",
+      (riderWebMe.body.rider as { phone?: string })?.phone === riderPhone, riderWebMe.body);
+
+    const riderAsDriver = await call("GET", "/me", { cookie: riderCookie, space: "driver" });
+    check("a rider cookie does not exist in the driver space", riderAsDriver.status === 401, riderAsDriver.status);
+
+    const driverAtRiderDoor = await call("POST", "/auth/web", {
+      body: { phone: driverA.phone, code: await plantCode(driverA.phone, "driver") },
+    });
+    check("a driver's number cannot open a rider session",
+      driverAtRiderDoor.status >= 400 && cookieFrom(driverAtRiderDoor, "dg_rider") === null,
+      driverAtRiderDoor.body);
+
+    const driverWeb = await call("POST", "/auth/web/driver", {
+      body: { phone: driverA.phone, code: await plantCode(driverA.phone, "driver") },
+    });
+    const driverCookie = cookieFrom(driverWeb, "dg_driver") ?? "";
+    check("a driver signing in on the website gets their own cookie",
+      driverWeb.status === 200 && driverCookie !== "" && driverWeb.body.accessToken === undefined,
+      driverWeb.body);
+
+    const driverWebMe = await call("GET", "/me", { cookie: driverCookie, space: "driver" });
+    check("the driver cookie opens the driver's own account",
+      (driverWebMe.body.driver as { phone?: string })?.phone === driverA.phone, driverWebMe.body);
+
+    const driverWebOffers = await call("GET", "/driver/offers", { cookie: driverCookie, space: "driver" });
+    check("the driver cookie reaches driver endpoints", driverWebOffers.status === 200, driverWebOffers.body);
+
+    const driverAsRider = await call("GET", "/me", { cookie: driverCookie });
+    check("a driver cookie does not exist in the rider space", driverAsRider.status === 401, driverAsRider.status);
+
+    const driverBooking = await call("POST", "/rides/estimate", {
+      cookie: driverCookie,
+      space: "driver",
+      body: { pickup: PICKUP, dropoff: DROPOFF },
+    });
+    check("a driver cannot price a ride for themselves", driverBooking.status === 403, driverBooking.status);
+
+    const driverOut = await call("DELETE", "/auth/web/driver", { cookie: driverCookie, space: "driver" });
+    check("signing out of the driver space clears only that cookie",
+      driverOut.status === 200 && cookieFrom(driverOut, "dg_driver") === null && cookieFrom(driverOut, "dg_rider") === null,
+      driverOut.cookies);
 
     // ----------------------------------------------------------- estimates ---
     section("Fare estimate");

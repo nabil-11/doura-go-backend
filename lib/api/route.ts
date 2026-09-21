@@ -5,7 +5,7 @@ import type { NextRequest } from "next/server";
 import type { z } from "zod";
 
 import { bearerToken, verifyAccessToken } from "@/lib/auth/mobile-token";
-import { RIDER_COOKIE, verifyRiderSession } from "@/lib/auth/rider-session";
+import { requestedSpace, verifyWebSession, webCookieName } from "@/lib/auth/web-session";
 import { connectToDatabase } from "@/lib/db/connect";
 import { Driver, type DriverRecord } from "@/lib/db/models/driver";
 import { Rider, type RiderRecord } from "@/lib/db/models/rider";
@@ -82,13 +82,19 @@ export type DriverPrincipal = { audience: "driver"; id: string; driver: DriverRe
 export type Principal = RiderPrincipal | DriverPrincipal;
 
 /**
- * The rider named by the website's session cookie, in the shape a bearer token
- * would have produced. Always a rider: there is no web driver app, and issuing
- * a driver principal from a cookie is not a door worth opening.
+ * The account named by the website's session cookie, in the shape a bearer
+ * token would have produced.
+ *
+ * Both web apps live on one origin, so a browser can be carrying a rider
+ * cookie and a driver cookie at the same time, and GET /me would not know
+ * which of the two it was being asked about. The client says so with a header,
+ * and only the cookie for that space is even looked at — so a rider cookie can
+ * never produce a driver principal, whatever else is in the jar.
  */
-async function webRiderPrincipal(request: NextRequest) {
-  const session = await verifyRiderSession(request.cookies.get(RIDER_COOKIE)?.value);
-  return session ? { audience: "rider" as const, id: session.sub, ver: session.ver } : null;
+async function webPrincipal(request: NextRequest) {
+  const space = requestedSpace(request.headers);
+  const session = await verifyWebSession(space, request.cookies.get(webCookieName(space))?.value);
+  return session ? { audience: space, id: session.sub, ver: session.ver } : null;
 }
 
 /**
@@ -98,14 +104,14 @@ async function webRiderPrincipal(request: NextRequest) {
  *
  * Two ways in, for two kinds of client. The phone apps send a bearer token.
  * The website has nowhere safe to keep one, so it sends an httpOnly cookie
- * instead and never touches a token at all — that cookie can only ever name a
- * rider, so a driver endpoint refuses it on the audience check below.
+ * instead and never touches a token at all. Which of the two web apps is
+ * asking decides which cookie counts; see webPrincipal above.
  */
 export async function authenticate(request: NextRequest): Promise<Principal> {
   const header = request.headers.get("authorization");
   const principal = header
     ? await verifyAccessToken(bearerToken(header))
-    : await webRiderPrincipal(request);
+    : await webPrincipal(request);
   if (!principal || !isValidObjectId(principal.id)) throw new ApiError("unauthorized");
 
   await connectToDatabase();

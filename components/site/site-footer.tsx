@@ -23,6 +23,7 @@ export function SiteFooter({ dict, locale }: { dict: Dictionary; locale: Locale 
         { href: `/${locale}/drive#apply`, label: t.apply },
         { href: `/${locale}/drive#requirements`, label: t.requirements },
         { href: `/${locale}/driver-app`, label: t.driverApp },
+        { href: `/${locale}/driver`, label: dict.site.nav.driverSpace },
       ],
     },
     {

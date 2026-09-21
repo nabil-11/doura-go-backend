@@ -35,12 +35,19 @@ export const otpVerifySchema = z.object({
   name: z.string().trim().min(2).max(80).optional(),
 });
 
-/** Signing in from the website: always a rider, and no token comes back. */
+/** A rider signing in from the website. No token comes back, only a cookie. */
 export const webVerifySchema = z.object({
   phone,
   code: z.string().trim().regex(/^\d{6}$/, "six digits"),
   name: z.string().trim().min(2).max(80).optional(),
 });
+
+/**
+ * A driver signing in from the website. No name: their account was created by
+ * the team from a vetted application, so an unknown number is refused rather
+ * than signed up.
+ */
+export const driverWebVerifySchema = webVerifySchema.omit({ name: true });
 
 export const refreshSchema = z.object({ refreshToken: z.string().min(20) });
 

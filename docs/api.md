@@ -1,8 +1,8 @@
 # Doura Go mobile API (v1)
 
-The HTTP interface behind the rider app (`doura-go-client`) and the driver app
-(`doura-go-driver`). Everything lives under `/api/v1`, speaks JSON, and is never
-cached.
+The HTTP interface behind the rider app (`doura-go-client`), the driver app
+(`doura-go-driver`) and the two web apps on the website itself. Everything lives
+under `/api/v1`, speaks JSON, and is never cached.
 
 ```
 GET https://douragoo.tn/api/v1          # what's here, and every error code
@@ -18,6 +18,10 @@ GET https://douragoo.tn/api/v1/config   # cities, tariff, search window
 ```http
 Authorization: Bearer <accessToken>
 ```
+
+The web apps send an httpOnly cookie instead of a header — see [Signing in from
+a browser](#signing-in-from-a-browser). Everything below works the same either
+way.
 
 Access tokens last **30 minutes**; refresh tokens last **60 days** and are
 rotated on every use. The account behind a token is re-read from the database on
@@ -128,6 +132,56 @@ to sign in again.
 
 Always succeeds. The access token keeps working until it expires, so discard it
 in the app too.
+
+---
+
+## Signing in from a browser
+
+The website runs the same two apps — booking at `/{lang}/ride`, driving at
+`/{lang}/driver` — and a browser has nowhere safe to keep a token: anything
+JavaScript can read, an injected script can steal. So the web apps never hold
+one. They sign in at their own door, get an **httpOnly cookie**, and every
+later call is the ordinary endpoint below with that cookie instead of an
+`Authorization` header.
+
+### `POST /auth/web` — rider
+
+```json
+{ "phone": "+21622123456", "code": "123456", "name": "Amine" }
+```
+
+Same checks as `/auth/verify` with `audience: "rider"`. `name` is required the
+first time and refused as `422 nameRequired` if missing. Sets `dg_rider` and
+returns `{ account: { id, isNew } }` — no tokens. The refresh token issued
+along the way is revoked immediately: the cookie is the session.
+
+### `POST /auth/web/driver` — driver
+
+```json
+{ "phone": "+21698123456", "code": "123456" }
+```
+
+No `name`: a driver account is created by the team from a vetted application,
+so an unknown number is `403 notRegistered` rather than a sign-up. Sets
+`dg_driver` and returns `{ account: { id } }`.
+
+`DELETE` on either path drops that cookie and leaves the other alone.
+
+### Which app is asking
+
+Both cookies live on one origin, so a browser can hold both and `GET /me` would
+not know which account it was being asked about. The driver app says so on
+**every** request:
+
+```http
+x-dg-space: driver
+```
+
+Without the header only the rider cookie is read, so the rider app needs no
+change — and a rider cookie can never produce a driver principal, whatever else
+is in the jar. The header is not in the CORS allow-list, which is deliberate: a
+cross-origin page cannot ask for the driver space at all. Together with
+`SameSite=Lax` on both cookies, that is the CSRF story.
 
 ---
 

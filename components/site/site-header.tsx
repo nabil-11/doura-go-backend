@@ -13,6 +13,7 @@ export function siteNavItems(dict: Dictionary, locale: Locale) {
     { href: `/${locale}#how`, label: dict.site.nav.ride },
     { href: `/${locale}#safety`, label: dict.site.nav.safety },
     { href: `/${locale}/drive`, label: dict.site.nav.drive },
+    { href: `/${locale}/driver`, label: dict.site.nav.driverSpace },
     { href: `/${locale}#cities`, label: dict.site.nav.cities },
     { href: `/${locale}#faq`, label: dict.site.nav.faq },
   ];
