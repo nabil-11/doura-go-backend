@@ -86,13 +86,35 @@ export function Stage({
   tall?: boolean;
 }) {
   return (
-    <div className={cn("relative isolate lg:grid lg:grid-cols-[minmax(0,1fr)_27rem]", STAGE_HEIGHT)}>
-      <div className="absolute inset-0 lg:relative lg:inset-auto lg:h-[calc(100svh-4rem)]">{map}</div>
+    <div
+      className={cn(
+        "relative isolate lg:grid lg:grid-cols-[minmax(0,1fr)_27rem]",
+        STAGE_HEIGHT,
+        // Aiming stacks: the map takes the room left over and the sheet sits
+        // under it, never on top. That is what puts the crosshair in the
+        // middle of what the rider can actually see — it marks the centre of
+        // the map element, so any part of that element hidden behind a sheet
+        // would put the pin somewhere other than where it looks.
+        //
+        // `max-lg:` and not a plain `flex` undone by `lg:block`: `lg:block`
+        // and `lg:grid` are the same kind of utility, so one silently wins
+        // and the desktop column disappears.
+        !tall && "max-lg:flex max-lg:flex-col",
+      )}
+    >
       <div
         className={cn(
-          "absolute inset-x-0 bottom-0 z-10 flex flex-col justify-end overflow-y-auto overscroll-contain p-3 sm:p-4",
-          tall ? "max-h-[72%]" : "max-h-[46%]",
-          "lg:static lg:max-h-none lg:h-[calc(100svh-4rem)] lg:justify-start lg:overflow-y-auto lg:border-s lg:bg-background lg:p-6",
+          tall ? "absolute inset-0" : "min-h-0 flex-1",
+          "lg:relative lg:inset-auto lg:h-[calc(100svh-4rem)] lg:flex-none",
+        )}
+      >
+        {map}
+      </div>
+      <div
+        className={cn(
+          "z-10 flex flex-col justify-end overflow-y-auto overscroll-contain p-3 sm:p-4",
+          tall ? "absolute inset-x-0 bottom-0 max-h-[72%]" : "max-h-[55%] shrink-0",
+          "lg:static lg:h-[calc(100svh-4rem)] lg:max-h-none lg:justify-start lg:overflow-y-auto lg:border-s lg:bg-background lg:p-6",
         )}
       >
         {children}
