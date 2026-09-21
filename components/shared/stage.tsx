@@ -47,12 +47,18 @@ export function useWideLayout() {
 export const SHEET_INSET = 0.46;
 
 /**
- * Fills the window under the sticky site header — a definite height, not a
- * minimum. Leaflet sizes itself to its container, and a percentage height
- * inside a `min-h` box has nothing firm to resolve against: the map comes out
- * zero pixels tall and draws no tiles at all.
+ * Fills the box the app layout hands down — a definite height, not a minimum.
+ * Leaflet sizes itself to its container, and a percentage height inside a
+ * `min-h` box has nothing firm to resolve against: the map comes out zero
+ * pixels tall and draws no tiles at all.
+ *
+ * It is `h-full`, not the window minus the header, because the window has
+ * already been divided once in `app/[lang]/(app)/layout.tsx`. Working the same
+ * number out a second time here is how the two drift: on a phone browser the
+ * chrome moves, the two answers stop agreeing, and the bottom of the sheet —
+ * the Confirm button — ends up under the address bar.
  */
-export const STAGE_HEIGHT = "h-[calc(100svh-4rem)]";
+export const STAGE_HEIGHT = "h-full";
 
 /**
  * Map behind, sheet in front.
@@ -72,29 +78,18 @@ export function Stage({
   children,
   overlay,
   tall = true,
-  fill = false,
 }: {
   map: React.ReactNode;
   children: React.ReactNode;
   /** Floats over the top of the map — the trip, while the map shows it. */
   overlay?: React.ReactNode;
   tall?: boolean;
-  /**
-   * Fill the parent instead of the window. For a stage that shares the screen
-   * with something else of its own — a tab bar under it, say — where a stage
-   * one window tall would push that off the bottom.
-   */
-  fill?: boolean;
 }) {
-  // Both columns are told their height outright, because Leaflet measures its
-  // container and a percentage of an indefinite parent measures zero.
-  const stageHeight = fill ? "h-full" : STAGE_HEIGHT;
-  const columnHeight = fill ? "lg:h-full" : "lg:h-[calc(100svh-4rem)]";
   return (
     <div
       className={cn(
         "relative isolate",
-        stageHeight,
+        STAGE_HEIGHT,
         "lg:grid lg:grid-cols-[minmax(0,1fr)_27rem]",
         // Aiming stacks instead of overlapping: the map takes one grid row and
         // the sheet the other, so the crosshair — which marks the centre of the
@@ -112,8 +107,7 @@ export function Stage({
         className={cn(
           "relative",
           tall ? "absolute inset-0" : "max-lg:min-h-0",
-          "lg:relative lg:inset-auto",
-          columnHeight,
+          "lg:relative lg:inset-auto lg:h-full",
         )}
       >
         {map}
@@ -132,8 +126,7 @@ export function Stage({
           tall
             ? "absolute inset-x-0 bottom-0 max-h-[76%] justify-end"
             : "max-lg:max-h-[58%]",
-          "lg:static lg:max-h-none lg:justify-start lg:border-s lg:bg-background lg:p-6",
-          columnHeight,
+          "lg:static lg:h-full lg:max-h-none lg:justify-start lg:border-s lg:bg-background lg:p-6",
         )}
       >
         {children}

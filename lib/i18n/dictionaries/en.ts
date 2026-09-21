@@ -477,7 +477,8 @@ const en = {
       rateSubmit: "Send rating",
       rateSkip: "Not now",
       rateThanks: "Thanks for the feedback.",
-      bookAgain: "Request again",
+      bookAgain: "Order the same trip",
+      bookOther: "Somewhere else",
     },
 
     status: {

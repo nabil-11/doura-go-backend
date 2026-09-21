@@ -383,7 +383,7 @@ export function DriveApp({
   }
 
   // A ride, finished or under way, owns the screen: no tabs under it.
-  const frame = "flex h-[calc(100svh-4rem)] flex-col";
+  const frame = "flex h-full flex-col";
 
   if (finished) {
     return (

@@ -82,18 +82,32 @@ type Props = {
   locale: Locale;
   config: AppConfig | null;
   rider: RiderProfile;
+  /** Stops to open with, when the rider asked for the same trip again. */
+  initial?: { pickup: ChosenPoint; dropoff: ChosenPoint } | null;
   onRequested: (ride: Ride) => void;
   /** Called when the server knows about a ride this screen doesn't. */
   onRecheck: () => void;
   onSignOut: () => void;
 };
 
-export function BookScreen({ copy, common, locale, config, rider, onRequested, onRecheck, onSignOut }: Props) {
+export function BookScreen({
+  copy,
+  common,
+  locale,
+  config,
+  rider,
+  initial,
+  onRequested,
+  onRecheck,
+  onSignOut,
+}: Props) {
   const t = copy.book;
   const wide = useWideLayout();
 
-  const [pickup, setPickup] = useState<ChosenPoint | null>(null);
-  const [dropoff, setDropoff] = useState<ChosenPoint | null>(null);
+  // Seeded once. This screen is mounted fresh each time it is reached, so a
+  // trip handed down here is the one the rider just asked to repeat.
+  const [pickup, setPickup] = useState<ChosenPoint | null>(initial?.pickup ?? null);
+  const [dropoff, setDropoff] = useState<ChosenPoint | null>(initial?.dropoff ?? null);
   const [picking, setPicking] = useState<Stop | null>(null);
   /** Where the picker's map opens, and the counter that remounts it there. */
   const [seed, setSeed] = useState<LatLng | null>(null);

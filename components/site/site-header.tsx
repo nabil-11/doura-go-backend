@@ -23,7 +23,7 @@ export function SiteHeader({ dict, locale }: { dict: Dictionary; locale: Locale 
   const items = siteNavItems(dict, locale);
 
   return (
-    <header className="sticky top-0 z-40 border-b border-white/10 bg-asphalt/85 text-white backdrop-blur-md">
+    <header className="sticky top-0 z-40 shrink-0 border-b border-white/10 bg-asphalt/85 text-white backdrop-blur-md">
       <div className="mx-auto flex h-16 max-w-6xl items-center gap-4 px-4 sm:px-6">
         <Link href={`/${locale}`} className="rounded-lg outline-none focus-visible:ring-3 focus-visible:ring-brand/60">
           <Logo tone="light" />

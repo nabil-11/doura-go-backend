@@ -9,7 +9,7 @@ import type { Offer } from "@/lib/drive/api";
 import type { Locale } from "@/lib/i18n/config";
 import { formatCurrency, formatNumber, interpolate } from "@/lib/i18n/format";
 
-import { StopsList } from "./stops";
+import { StopsList } from "@/components/shared/stops";
 import { Notice, tripLine, type CommonCopy, type DriveCopy } from "./shell";
 
 function secondsLeft(expiresAt: string | null) {

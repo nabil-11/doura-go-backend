@@ -75,7 +75,6 @@ export function HomeScreen({
 
   return (
     <Stage
-      fill
       map={
         <DriveMap
           label={t.mapLabel}

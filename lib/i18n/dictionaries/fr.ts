@@ -490,7 +490,8 @@ const fr: Dictionary = {
       rateSubmit: "Envoyer la note",
       rateSkip: "Plus tard",
       rateThanks: "Merci pour votre retour.",
-      bookAgain: "Commander à nouveau",
+      bookOther: "Une autre destination",
+      bookAgain: "Commander le même trajet",
     },
 
     status: {

@@ -230,11 +230,16 @@ export function PickPanel({
 
       {/* No card on a phone: the sheet is already the container, and a bordered
           box inside it is a box in a box. Beside the map on a desktop it needs
-          the frame, because there it sits among other things. */}
+          the frame, because there it sits among other things.
+
+          Pinned to the bottom of the sheet on a phone. Whatever else is in
+          there — a long address, a short screen, a browser that keeps its
+          chrome — the button that ends this screen stays on it. */}
       <div
         className={cn(
           mode === "search" && "hidden lg:block",
-          "lg:rounded-xl lg:border lg:bg-muted/40 lg:p-3",
+          "sticky bottom-0 -mx-4 border-t bg-card px-4 pt-3",
+          "lg:static lg:mx-0 lg:rounded-xl lg:border lg:bg-muted/40 lg:p-3",
         )}
       >
         <div className="flex items-start gap-3" aria-live="polite">

@@ -43,7 +43,7 @@ import {
   type CommonCopy,
   type DriveCopy,
 } from "./shell";
-import { StopsList } from "./stops";
+import { StopsList } from "@/components/shared/stops";
 
 /** Far enough to be worth asking for a new line along the streets. */
 const REROUTE_AFTER_M = 300;
@@ -204,7 +204,6 @@ export function ActiveRide({
 
   return (
     <Stage
-      fill
       map={
         <DriveMap
           label={t.mapLabel}

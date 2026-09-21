@@ -11,7 +11,8 @@ type Stop = { label: string; address: string };
  * far the pickup is, how long the trip runs — because those are what a driver
  * reads first and the street name is what they read second.
  *
- * Static on purpose: the driver is being told where to go, not choosing.
+ * Static on purpose: this is a trip being reported, not chosen — the driver
+ * being told where to go, or a rider being shown the ride that just ended.
  */
 export function StopsList({
   pickup,

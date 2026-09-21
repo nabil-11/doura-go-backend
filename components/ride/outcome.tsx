@@ -1,9 +1,10 @@
 "use client";
 
-import { BanknoteIcon, CircleCheckBigIcon, CircleXIcon, StarIcon } from "lucide-react";
+import { BanknoteIcon, CircleCheckBigIcon, CircleXIcon, RepeatIcon, StarIcon } from "lucide-react";
 import { useMemo, useState } from "react";
 
 import type { MapMarker } from "@/components/map/map-view";
+import { StopsList } from "@/components/shared/stops";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import type { Locale } from "@/lib/i18n/config";
@@ -30,7 +31,8 @@ type Props = {
   common: CommonCopy;
   locale: Locale;
   ride: Ride;
-  onDone: () => void;
+  /** Leaving this screen. `again` carries the same two stops back to booking. */
+  onDone: (again: boolean) => void;
 };
 
 /** How a ride ended, and — when it ended well — what the rider made of it. */
@@ -38,6 +40,7 @@ export function OutcomeScreen({ copy, common, locale, ride, onDone }: Props) {
   const t = copy.ride;
   const wide = useWideLayout();
   const completed = ride.status === "completed";
+  const rateable = completed && ride.riderRating === null;
   const [rating, setRating] = useState(0);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -66,7 +69,7 @@ export function OutcomeScreen({ copy, common, locale, ride, onDone }: Props) {
     setError(null);
     try {
       await rateRide(ride.id, rating);
-      onDone();
+      onDone(false);
     } catch (failure) {
       setError(messageFor(copy, failure));
       setSending(false);
@@ -110,6 +113,16 @@ export function OutcomeScreen({ copy, common, locale, ride, onDone }: Props) {
 
           {lead ? <p className="text-sm text-muted-foreground">{lead}</p> : null}
 
+          {/* Which trip this was. "Order the same trip" below is a promise
+              about two particular addresses, and a rider should be able to
+              read them before taking it — a cancelled ride otherwise leaves
+              nothing on screen but a distance. */}
+          <StopsList
+            className="rounded-xl border bg-muted/40 p-3"
+            pickup={{ label: copy.book.pickup, address: ride.pickup.address }}
+            dropoff={{ label: copy.book.dropoff, address: ride.dropoff.address }}
+          />
+
           {completed ? (
             <div className="rounded-xl border bg-muted/40 p-4">
               <div className="flex items-baseline justify-between gap-3">
@@ -132,7 +145,7 @@ export function OutcomeScreen({ copy, common, locale, ride, onDone }: Props) {
             </div>
           ) : null}
 
-          {completed && ride.riderRating === null ? (
+          {rateable ? (
             <div>
               <h2 className="font-semibold">{t.rateTitle}</h2>
               <p className="mt-0.5 text-sm text-muted-foreground">{t.rateSubtitle}</p>
@@ -159,14 +172,18 @@ export function OutcomeScreen({ copy, common, locale, ride, onDone }: Props) {
             </div>
           ) : null}
 
-          {completed && ride.riderRating !== null ? (
+          {completed && !rateable ? (
             <p className="text-sm text-muted-foreground">{t.rateThanks}</p>
           ) : null}
 
           <Notice message={error} />
 
-          <div className="flex flex-col gap-2 sm:flex-row-reverse">
-            {completed && ride.riderRating === null ? (
+          {/* A rating is the only thing that outranks leaving, and only while
+              it is still owed. Once it is not, this screen is a dead end with
+              one way out — so that way out gets the whole width, the height of
+              a primary action and a word about what it will actually do. */}
+          {rateable ? (
+            <div className="flex flex-col gap-2 sm:flex-row-reverse">
               <Button
                 type="button"
                 onClick={() => void submit()}
@@ -176,17 +193,39 @@ export function OutcomeScreen({ copy, common, locale, ride, onDone }: Props) {
                 {sending ? <Spinner aria-hidden="true" /> : null}
                 {t.rateSubmit}
               </Button>
-            ) : null}
-            <Button
-              type="button"
-              variant={completed && ride.riderRating === null ? "outline" : "default"}
-              onClick={onDone}
-              disabled={sending}
-              className="h-12 flex-1 text-base font-semibold"
-            >
-              {completed && ride.riderRating === null ? t.rateSkip : t.bookAgain}
-            </Button>
-          </div>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => onDone(false)}
+                disabled={sending}
+                className="h-12 flex-1 text-base font-semibold"
+              >
+                {t.rateSkip}
+              </Button>
+            </div>
+          ) : (
+            <div className="flex flex-col gap-1">
+              <Button
+                type="button"
+                onClick={() => onDone(true)}
+                className="h-13 w-full text-base font-semibold shadow-sm transition-shadow hover:shadow-md"
+              >
+                <RepeatIcon aria-hidden="true" />
+                {t.bookAgain}
+              </Button>
+              {/* The same trip failing is exactly when a rider might want a
+                  different one; an empty booking screen is one tap away and
+                  should not be the only thing this button can mean. */}
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() => onDone(false)}
+                className="h-10 w-full text-sm font-medium text-muted-foreground"
+              >
+                {t.bookOther}
+              </Button>
+            </div>
+          )}
         </div>
       </Panel>
     </Stage>

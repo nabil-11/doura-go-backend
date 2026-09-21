@@ -469,7 +469,8 @@ const ar: Dictionary = {
       rateSubmit: "إرسال التقييم",
       rateSkip: "لاحقًا",
       rateThanks: "شكرًا على ملاحظاتك.",
-      bookAgain: "اطلب مرة أخرى",
+      bookOther: "وجهة أخرى",
+      bookAgain: "اطلب نفس الرحلة",
     },
 
     status: {

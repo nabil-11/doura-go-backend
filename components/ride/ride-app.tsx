@@ -14,6 +14,7 @@ import {
   getRide,
   signOut,
   type AppConfig,
+  type ChosenPoint,
   type Ride,
   type RiderProfile,
 } from "@/lib/ride/api";
@@ -33,6 +34,17 @@ function isOngoing(ride: Ride) {
   return (ONGOING_RIDE_STATUSES as readonly string[]).includes(ride.status);
 }
 
+/** The two ends of a ride, if both are places the booking screen could reuse. */
+function sameTrip(ride: Ride) {
+  const { pickup, dropoff } = ride;
+  if (pickup.lat === null || pickup.lng === null) return null;
+  if (dropoff.lat === null || dropoff.lng === null) return null;
+  return {
+    pickup: { address: pickup.address, lat: pickup.lat, lng: pickup.lng },
+    dropoff: { address: dropoff.address, lat: dropoff.lat, lng: dropoff.lng },
+  };
+}
+
 /**
  * The rider web app.
  *
@@ -47,6 +59,12 @@ export function RideApp({ copy, common, locale }: { copy: RideCopy; common: Comm
   const [finished, setFinished] = useState<Ride | null>(null);
   const [booting, setBooting] = useState(true);
   const [bootError, setBootError] = useState<string | null>(null);
+  /**
+   * The trip to open the booking screen with, when a rider asked for the same
+   * one again. "Order the same trip" that dropped them on an empty form would
+   * be a button that does not do what it says.
+   */
+  const [again, setAgain] = useState<{ pickup: ChosenPoint; dropoff: ChosenPoint } | null>(null);
 
   /** A ride that has stopped moving leaves the live screen for the last one. */
   const apply = useCallback((next: Ride) => {
@@ -197,7 +215,10 @@ export function RideApp({ copy, common, locale }: { copy: RideCopy; common: Comm
         common={common}
         locale={locale}
         ride={finished}
-        onDone={() => setFinished(null)}
+        onDone={(repeat) => {
+          setAgain(repeat ? sameTrip(finished) : null);
+          setFinished(null);
+        }}
       />
     );
   }
@@ -222,6 +243,7 @@ export function RideApp({ copy, common, locale }: { copy: RideCopy; common: Comm
       locale={locale}
       config={config}
       rider={rider}
+      initial={again}
       onRequested={apply}
       onRecheck={reload}
       onSignOut={() => void leave()}

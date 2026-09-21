@@ -11,8 +11,10 @@ import { getDictionary, getLocale } from "@/lib/i18n/get-dictionary";
  * past a live ride is a list of links about helmets.
  *
  * The window is divided here, once: the header takes its `h-16` and the app
- * gets exactly what is left. That is the `calc(100svh-4rem)` the map screens
- * size themselves to, so the two agree by construction.
+ * gets exactly what is left. The screens inside fill that box with `h-full`
+ * rather than working the same subtraction out again — on a phone browser the
+ * chrome moves, two answers stop agreeing, and the bottom of a sheet ends up
+ * under the address bar.
  */
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const [dict, locale] = await Promise.all([getDictionary(), getLocale()]);
@@ -26,7 +28,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         {dict.common.skipToContent}
       </a>
       <SiteHeader dict={dict} locale={locale} />
-      <main id="main" className="min-h-0 flex-1">
+      <main id="main" className="min-h-0 flex-1 overflow-hidden">
         {children}
       </main>
     </div>
