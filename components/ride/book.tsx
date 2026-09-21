@@ -1,6 +1,6 @@
 "use client";
 
-import { BanknoteIcon, CrosshairIcon, FlagIcon, LogOutIcon, MapPinIcon, TagIcon } from "lucide-react";
+import { BanknoteIcon, CrosshairIcon, FlagIcon, LogOutIcon, MapIcon, MapPinIcon, TagIcon } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import type { MapMarker } from "@/components/map/map-view";
@@ -192,6 +192,15 @@ export function BookScreen({ copy, common, locale, config, rider, onRequested, o
     setRequestError(null);
   }
 
+  /**
+   * "Choose on the map", from the book panel. It opens whichever stop is still
+   * missing — the pickup first, then the destination — so the button does the
+   * obvious thing rather than asking which one was meant.
+   */
+  function pickOnMap() {
+    startPicking(pickup ? "dropoff" : "pickup");
+  }
+
   /** "My position", from the book panel: it becomes the pickup. */
   function locateForPickup() {
     setLocating(true);
@@ -318,16 +327,26 @@ export function BookScreen({ copy, common, locale, config, rider, onRequested, o
               />
             </div>
 
-            <Button
-              type="button"
-              variant="outline"
-              onClick={locateForPickup}
-              disabled={locating}
-              className="h-10 w-fit"
-            >
-              {locating ? <Spinner aria-hidden="true" /> : <CrosshairIcon aria-hidden="true" />}
-              {locating ? t.locating : t.useMyLocation}
-            </Button>
+            {/* The two ways to set a point without typing an address. Half the
+                useful places in Tunis have no address anyone would type, so
+                dropping a pin is a first-class action, not something to find
+                underneath a list of search results. */}
+            <div className="flex flex-wrap gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={locateForPickup}
+                disabled={locating}
+                className="h-10"
+              >
+                {locating ? <Spinner aria-hidden="true" /> : <CrosshairIcon aria-hidden="true" />}
+                {locating ? t.locating : t.useMyLocation}
+              </Button>
+              <Button type="button" variant="outline" onClick={pickOnMap} className="h-10">
+                <MapIcon aria-hidden="true" />
+                {t.pinOnMap}
+              </Button>
+            </div>
 
             <Notice message={locationError} />
             {sameStops ? <Notice message={t.sameStops} /> : null}

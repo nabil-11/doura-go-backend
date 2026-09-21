@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeftIcon, CheckIcon, ClockIcon, CrosshairIcon, MapPinIcon, SearchIcon } from "lucide-react";
+import { ArrowLeftIcon, CheckIcon, ClockIcon, CrosshairIcon, MapIcon, MapPinIcon, SearchIcon } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -205,7 +205,14 @@ export function PickPanel({
         {!showRecents && !asking ? <p className="px-1 py-3 text-sm text-muted-foreground">{t.searchHint}</p> : null}
       </div>
 
+      {/* Naming this is what tells a rider the map is theirs to move. Without
+          a heading it reads as a status line about a pin they did not know
+          they had. */}
       <div className="rounded-xl border bg-muted/40 p-3">
+        <p className="mb-2 flex items-center gap-2 text-xs font-medium tracking-wide text-muted-foreground uppercase">
+          <MapIcon className="size-3.5" aria-hidden="true" />
+          {t.pinOnMap}
+        </p>
         <p className="flex items-start gap-2 text-sm" aria-live="polite">
           <MapPinIcon className="mt-0.5 size-4 shrink-0 text-brand-deep" aria-hidden="true" />
           <span className="min-w-0">
