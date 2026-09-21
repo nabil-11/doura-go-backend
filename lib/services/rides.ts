@@ -94,15 +94,26 @@ function toListItem(ride: RideRecord, people: Awaited<ReturnType<typeof peopleFo
   };
 }
 
+/**
+ * Rides, newest first. `rider` and `driver` narrow it to one person's history,
+ * which is what the record pages ask for — the same shape, the same sort, so a
+ * ride reads identically wherever it is listed.
+ */
 export async function listRides(options: {
   filter?: RideFilter;
   q?: string;
+  rider?: string;
+  driver?: string;
   page: number;
   pageSize: number;
 }): Promise<Paginated<RideListItem>> {
   await connectToDatabase();
   const query: QueryFilter<RideRecord> = filterFor(options.filter);
   if (options.q) query.code = new RegExp(escapeRegex(options.q), "i");
+  // An id that could not name anything must match nothing, rather than being
+  // dropped and quietly listing every ride on the platform.
+  if (options.rider !== undefined) query.rider = isValidObjectId(options.rider) ? options.rider : null;
+  if (options.driver !== undefined) query.driver = isValidObjectId(options.driver) ? options.driver : null;
 
   const [rides, total] = await Promise.all([
     Ride.find(query)

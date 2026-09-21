@@ -72,7 +72,15 @@ export default async function RidesPage({ searchParams }: PageProps<"/[lang]/adm
                         </Link>
                         <p className="text-xs text-muted-foreground">{formatDateTime(locale, ride.requestedAt)}</p>
                       </TableCell>
-                      <TableCell className="hidden md:table-cell">{ride.rider?.name ?? "—"}</TableCell>
+                      <TableCell className="hidden md:table-cell">
+                        {ride.rider ? (
+                          <Link href={`/${locale}/admin/riders/${ride.rider.id}`} className="hover:underline">
+                            {ride.rider.name}
+                          </Link>
+                        ) : (
+                          "—"
+                        )}
+                      </TableCell>
                       <TableCell className="hidden md:table-cell">
                         {ride.driver ? (
                           <Link href={`/${locale}/admin/drivers/${ride.driver.id}`} className="hover:underline">

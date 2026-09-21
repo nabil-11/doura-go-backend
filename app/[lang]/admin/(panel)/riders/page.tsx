@@ -86,7 +86,12 @@ export default async function RidersPage({ searchParams }: PageProps<"/[lang]/ad
                             <AvatarFallback className="bg-muted text-xs font-semibold">{initials(rider.name)}</AvatarFallback>
                           </Avatar>
                           <div className="min-w-0">
-                            <p className="truncate font-medium">{rider.name}</p>
+                            <Link
+                              href={`/${locale}/admin/riders/${rider.id}`}
+                              className="block truncate font-medium hover:underline"
+                            >
+                              {rider.name}
+                            </Link>
                             <p className="ltr-nums text-xs text-muted-foreground">{formatPhone(rider.phone)}</p>
                           </div>
                         </div>

@@ -168,7 +168,13 @@ export default async function RidePage({ params }: PageProps<"/[lang]/admin/ride
             <CardContent className="space-y-4 text-sm">
               <div>
                 <p className="text-xs text-muted-foreground">{t.rider}</p>
-                <p className="font-medium">{ride.rider?.name ?? "—"}</p>
+                {ride.rider ? (
+                  <Link href={`/${locale}/admin/riders/${ride.rider.id}`} className="font-medium hover:underline">
+                    {ride.rider.name}
+                  </Link>
+                ) : (
+                  <p className="font-medium">—</p>
+                )}
                 {ride.riderPhone ? <p className="ltr-nums text-muted-foreground">{formatPhone(ride.riderPhone)}</p> : null}
               </div>
               <div>

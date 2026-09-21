@@ -14,6 +14,7 @@ import { notFound } from "next/navigation";
 
 import { AccessDenied } from "@/components/admin/access-denied";
 import { ActivityFeed } from "@/components/admin/activity-feed";
+import { RecentRides } from "@/components/admin/recent-rides";
 import { DocumentTile } from "@/components/admin/drivers/document-tile";
 import { BalanceCard } from "@/components/admin/drivers/balance-card";
 import { DriverStatusActions } from "@/components/admin/drivers/driver-status-actions";
@@ -39,6 +40,7 @@ import {
 } from "@/lib/i18n/format";
 import { getDictionary, getLocale } from "@/lib/i18n/get-dictionary";
 import { listActivityFor } from "@/lib/services/activity";
+import { listRides } from "@/lib/services/rides";
 import { balanceState, listDriverPayments } from "@/lib/services/balance";
 import { getDriver } from "@/lib/services/drivers";
 import { requestTime } from "@/lib/time";
@@ -49,6 +51,9 @@ export async function generateMetadata({ params }: PageProps<"/[lang]/admin/driv
   const [dict, driver] = await Promise.all([getDictionary(), getDriver(id)]);
   return { title: driver?.name ?? dict.admin.drivers.title };
 }
+
+/** Enough to see the shape of someone's history without becoming a list page. */
+const RECENT_RIDES = 10;
 
 function Detail({ label, children }: { label: string; children: React.ReactNode }) {
   return (
@@ -64,10 +69,11 @@ export default async function DriverPage({ params }: PageProps<"/[lang]/admin/dr
   const [admin, dict, locale] = await Promise.all([requireAdmin(), getDictionary(), getLocale()]);
   if (!can(admin.role, "drivers:view")) return <AccessDenied dict={dict} />;
 
-  const [driver, activity, payments] = await Promise.all([
+  const [driver, activity, payments, rides] = await Promise.all([
     getDriver(id),
     listActivityFor("driver", id).catch(() => []),
     listDriverPayments(id).catch(() => []),
+    listRides({ driver: id, page: 1, pageSize: RECENT_RIDES }),
   ]);
   if (!driver) notFound();
 
@@ -260,6 +266,17 @@ export default async function DriverPage({ params }: PageProps<"/[lang]/admin/dr
               </div>
             </CardContent>
           </Card>
+
+          <RecentRides
+            rides={rides.items}
+            total={rides.total}
+            dict={dict}
+            locale={locale}
+            title={t.detail.rides}
+            emptyText={t.detail.noRides}
+            showingRecent={t.detail.showingRecent}
+            counterpart="rider"
+          />
         </div>
 
         <div className="space-y-6">
