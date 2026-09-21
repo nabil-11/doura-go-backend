@@ -1,6 +1,6 @@
 "use client";
 
-import { BanknoteIcon, CrosshairIcon, FlagIcon, LogOutIcon, MapIcon, MapPinIcon, TagIcon } from "lucide-react";
+import { BanknoteIcon, CrosshairIcon, LogOutIcon, MapIcon, TagIcon } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import type { MapMarker } from "@/components/map/map-view";
@@ -266,7 +266,11 @@ export function BookScreen({ copy, common, locale, config, rider, onRequested, o
       center={seed ?? centre}
       zoom={16}
       scrollZoom
-      picking
+      // Only when the map is the thing being used. On a phone in the search
+      // tab the map is context, and a crosshair there points at whatever
+      // happens to be behind the sheet. Beside the panel on a desktop both
+      // halves are in use at once, so it stays.
+      picking={pickMode === "map" || wide}
       onPick={setPin}
     />
   ) : (
@@ -281,7 +285,21 @@ export function BookScreen({ copy, common, locale, config, rider, onRequested, o
   );
 
   return (
-    <Stage map={map} tall={!picking || pickMode === "search"}>
+    <Stage
+      map={map}
+      tall={!picking || pickMode === "search"}
+      overlay={
+        picking ? null : (
+          <StopsCard
+            t={t}
+            pickup={pickup?.address}
+            dropoff={dropoff?.address}
+            onPick={() => startPicking("pickup")}
+            onDrop={() => startPicking("dropoff")}
+          />
+        )
+      }
+    >
       <Panel>
         {picking ? (
           <PickPanel
@@ -312,24 +330,6 @@ export function BookScreen({ copy, common, locale, config, rider, onRequested, o
                 <LogOutIcon className="rtl:rotate-180" aria-hidden="true" />
                 <span className="sr-only sm:not-sr-only">{copy.signOut}</span>
               </Button>
-            </div>
-
-            <div className="overflow-hidden rounded-xl border">
-              <StopRow
-                icon={<MapPinIcon className="size-4" aria-hidden="true" />}
-                label={t.pickup}
-                value={pickup?.address}
-                placeholder={t.pickupPlaceholder}
-                onClick={() => startPicking("pickup")}
-              />
-              <div className="h-px bg-border" />
-              <StopRow
-                icon={<FlagIcon className="size-4" aria-hidden="true" />}
-                label={t.dropoff}
-                value={dropoff?.address}
-                placeholder={t.dropoffPlaceholder}
-                onClick={() => startPicking("dropoff")}
-              />
             </div>
 
             {/* The two ways to set a point without typing an address. Half the
@@ -413,14 +413,61 @@ export function BookScreen({ copy, common, locale, config, rider, onRequested, o
   );
 }
 
+/**
+ * The two ends of the trip, as a card that floats over the map.
+ *
+ * The label sits on the start and the place on the end of each row, with a
+ * dotted line joining the two markers — a departure board, not a form. Both
+ * rows are buttons: tapping either is how the stop is changed, so the card is
+ * the trip and the control for it at once.
+ */
+function StopsCard({
+  t,
+  pickup,
+  dropoff,
+  onPick,
+  onDrop,
+}: {
+  t: RideCopy["book"];
+  pickup?: string;
+  dropoff?: string;
+  onPick: () => void;
+  onDrop: () => void;
+}) {
+  return (
+    <div className="overflow-hidden rounded-2xl bg-card/95 shadow-[0_16px_40px_-20px_rgb(15_17_21/0.5)] ring-1 ring-black/5 backdrop-blur-sm">
+      <StopRow
+        marker={<span className="size-2.5 rounded-full border-[3px] border-asphalt dark:border-white" />}
+        label={t.pickup}
+        value={pickup}
+        placeholder={t.pickupPlaceholder}
+        onClick={onPick}
+      />
+      {/* Joins the two markers, and lines up with them: the same 14px inset
+          plus half the marker's width. */}
+      <span
+        aria-hidden="true"
+        className="ms-[18px] block h-3 border-s border-dashed border-muted-foreground/50"
+      />
+      <StopRow
+        marker={<span className="size-2.5 rounded-[3px] bg-asphalt dark:bg-white" />}
+        label={t.dropoff}
+        value={dropoff}
+        placeholder={t.dropoffPlaceholder}
+        onClick={onDrop}
+      />
+    </div>
+  );
+}
+
 function StopRow({
-  icon,
+  marker,
   label,
   value,
   placeholder,
   onClick,
 }: {
-  icon: React.ReactNode;
+  marker: React.ReactNode;
   label: string;
   value?: string;
   placeholder: string;
@@ -430,14 +477,18 @@ function StopRow({
     <button
       type="button"
       onClick={onClick}
-      className="flex w-full items-center gap-3 px-3 py-3 text-start transition-colors outline-none hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:ring-inset"
+      className="flex w-full items-center gap-3 px-3.5 py-2.5 text-start transition-colors outline-none hover:bg-muted/60 focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:ring-inset"
     >
-      <span className="text-brand-deep">{icon}</span>
-      <span className="min-w-0 flex-1">
-        <span className="block text-[0.7rem] font-medium tracking-wide text-muted-foreground uppercase">{label}</span>
-        <span className={value ? "block truncate text-sm font-medium" : "block truncate text-sm text-muted-foreground"}>
-          {value ?? placeholder}
-        </span>
+      <span className="flex size-2.5 shrink-0 items-center justify-center">{marker}</span>
+      <span className="shrink-0 text-xs text-muted-foreground">{label}</span>
+      <span
+        className={
+          value
+            ? "ms-auto min-w-0 truncate text-sm font-semibold"
+            : "ms-auto min-w-0 truncate text-sm text-muted-foreground"
+        }
+      >
+        {value ?? placeholder}
       </span>
     </button>
   );

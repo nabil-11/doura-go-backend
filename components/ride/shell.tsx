@@ -60,8 +60,13 @@ export function useWideLayout() {
 /** The share of the map height the sheet covers on a phone. */
 export const SHEET_INSET = 0.46;
 
-/** Fills the window under the sticky site header. */
-const STAGE_HEIGHT = "min-h-[calc(100svh-4rem)]";
+/**
+ * Fills the window under the sticky site header — a definite height, not a
+ * minimum. Leaflet sizes itself to its container, and a percentage height
+ * inside a `min-h` box has nothing firm to resolve against: the map comes out
+ * zero pixels tall and draws no tiles at all.
+ */
+const STAGE_HEIGHT = "h-[calc(100svh-4rem)]";
 
 /**
  * Map behind, sheet in front.
@@ -79,42 +84,57 @@ const STAGE_HEIGHT = "min-h-[calc(100svh-4rem)]";
 export function Stage({
   map,
   children,
+  overlay,
   tall = true,
 }: {
   map: React.ReactNode;
   children: React.ReactNode;
+  /** Floats over the top of the map — the trip, while the map shows it. */
+  overlay?: React.ReactNode;
   tall?: boolean;
 }) {
   return (
     <div
       className={cn(
-        "relative isolate lg:grid lg:grid-cols-[minmax(0,1fr)_27rem]",
+        "relative isolate",
         STAGE_HEIGHT,
-        // Aiming stacks: the map takes the room left over and the sheet sits
-        // under it, never on top. That is what puts the crosshair in the
-        // middle of what the rider can actually see — it marks the centre of
-        // the map element, so any part of that element hidden behind a sheet
-        // would put the pin somewhere other than where it looks.
+        "lg:grid lg:grid-cols-[minmax(0,1fr)_27rem]",
+        // Aiming stacks instead of overlapping: the map takes one grid row and
+        // the sheet the other, so the crosshair — which marks the centre of the
+        // map element — lands in the middle of what the rider can actually see.
+        // Grid rows rather than flex, because `minmax(0,1fr)` is a definite
+        // track: the map gets a real height to size its tiles against.
         //
-        // `max-lg:` and not a plain `flex` undone by `lg:block`: `lg:block`
-        // and `lg:grid` are the same kind of utility, so one silently wins
-        // and the desktop column disappears.
-        !tall && "max-lg:flex max-lg:flex-col",
+        // `max-lg:` throughout, never a base utility undone by `lg:`. `lg:block`
+        // and `lg:grid` are the same kind of utility, so one silently wins and
+        // the desktop column disappears.
+        !tall && "max-lg:grid max-lg:grid-rows-[minmax(0,1fr)_auto]",
       )}
     >
       <div
         className={cn(
-          tall ? "absolute inset-0" : "min-h-0 flex-1",
-          "lg:relative lg:inset-auto lg:h-[calc(100svh-4rem)] lg:flex-none",
+          "relative",
+          tall ? "absolute inset-0" : "max-lg:min-h-0",
+          "lg:relative lg:inset-auto lg:h-[calc(100svh-4rem)]",
         )}
       >
         {map}
+        {/* Over the map, not above it in the sheet: the two ends of the trip
+            belong next to the line drawn between them. `pointer-events-none`
+            on the frame keeps the map draggable everywhere the card is not. */}
+        {overlay ? (
+          <div className="pointer-events-none absolute inset-x-0 top-0 z-[700] p-3 sm:p-4">
+            <div className="pointer-events-auto mx-auto max-w-lg lg:max-w-xl">{overlay}</div>
+          </div>
+        ) : null}
       </div>
       <div
         className={cn(
-          "z-10 flex flex-col justify-end overflow-y-auto overscroll-contain p-3 sm:p-4",
-          tall ? "absolute inset-x-0 bottom-0 max-h-[72%]" : "max-h-[55%] shrink-0",
-          "lg:static lg:h-[calc(100svh-4rem)] lg:max-h-none lg:justify-start lg:overflow-y-auto lg:border-s lg:bg-background lg:p-6",
+          "z-10 flex min-h-0 flex-col overflow-y-auto overscroll-contain",
+          tall
+            ? "absolute inset-x-0 bottom-0 max-h-[76%] justify-end"
+            : "max-lg:max-h-[58%]",
+          "lg:static lg:h-[calc(100svh-4rem)] lg:max-h-none lg:justify-start lg:border-s lg:bg-background lg:p-6",
         )}
       >
         {children}
@@ -123,16 +143,29 @@ export function Stage({
   );
 }
 
-/** The sheet itself: a card on a phone, plain page furniture beside the map. */
+/**
+ * The sheet itself: a bottom sheet on a phone, plain page furniture beside the
+ * map on a desktop.
+ *
+ * Edge to edge and rounded only at the top, because a card floating with a gap
+ * down both sides wastes the narrowest thing on the screen — its width — and
+ * reads as a dialog that ought to be dismissable. The grab handle says which
+ * way it belongs, and the bottom padding clears the home indicator.
+ */
 export function Panel({ children, className }: { children: React.ReactNode; className?: string }) {
   return (
     <div
       className={cn(
-        "w-full rounded-2xl border bg-card p-4 shadow-[0_20px_50px_-28px_rgb(15_17_21/0.55)] sm:p-5",
+        "w-full rounded-t-2xl border-t bg-card px-4 pt-2.5 pb-[max(1rem,env(safe-area-inset-bottom))]",
+        "shadow-[0_-14px_36px_-18px_rgb(15_17_21/0.45)]",
         "lg:rounded-none lg:border-0 lg:bg-transparent lg:p-0 lg:shadow-none",
         className,
       )}
     >
+      <span
+        aria-hidden="true"
+        className="mx-auto mb-3 block h-1 w-10 rounded-full bg-border lg:hidden"
+      />
       {children}
     </div>
   );

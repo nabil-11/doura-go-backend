@@ -399,6 +399,8 @@ const ar: Dictionary = {
       dropoffPlaceholder: "إلى أين؟",
       useMyLocation: "موقعي الحالي",
       pinOnMap: "التحديد على الخريطة",
+      tabSearch: "بحث",
+      tabMap: "الخريطة",
       setPickup: "حدّد نقطة الانطلاق",
       setDropoff: "حدّد الوجهة",
       movePin: "حرّك الخريطة لضبط العلامة",

@@ -420,6 +420,8 @@ const fr: Dictionary = {
       dropoffPlaceholder: "Où allez-vous ?",
       useMyLocation: "Ma position",
       pinOnMap: "Choisir sur la carte",
+      tabSearch: "Rechercher",
+      tabMap: "Carte",
       setPickup: "Placez le point de départ",
       setDropoff: "Placez la destination",
       movePin: "Déplacez la carte pour ajuster le repère",

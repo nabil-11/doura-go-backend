@@ -139,7 +139,14 @@ export default function MapCanvas({
     };
     instance.on("moveend", report);
 
+    // Leaflet measures the container the instant it is created. A map built
+    // during the same paint as the layout that gives it a size measures zero,
+    // and a map that believes it is zero pixels tall requests no tiles at all
+    // — a blank panel with no way back. One frame later the size is real.
+    const measured = requestAnimationFrame(() => instance.invalidateSize());
+
     return () => {
+      cancelAnimationFrame(measured);
       instance.off("moveend", report);
       instance.remove();
       map.current = null;
@@ -227,11 +234,15 @@ export default function MapCanvas({
       {/* The pin the map moves under. Leaflet's own panes run to z-index 700,
           so this has to sit above them — and `isolate` on the wrapper keeps
           that number from reaching anything outside the map. */}
+      {/* The pin, and the spot on the ground it is actually pointing at. The
+          shadow is not decoration: a teardrop floats above its own point, and
+          without something marking the ground the rider aims at the wrong
+          place by the height of the pin. */}
       {picking ? (
-        <span
-          aria-hidden="true"
-          className="pointer-events-none absolute start-1/2 top-1/2 z-[800] -ms-3.5 -mt-7 size-7 rounded-full rounded-bl-none border-[3px] border-white bg-brand shadow-lg [rotate:-45deg] after:absolute after:inset-1.5 after:rounded-full after:bg-asphalt after:content-['']"
-        />
+        <span className="pointer-events-none absolute start-1/2 top-1/2 z-[800]" aria-hidden="true">
+          <span className="absolute -start-1 -top-1 size-2 rounded-full bg-asphalt/30 ring-1 ring-white/70" />
+          <span className="absolute -start-3.5 -top-9 size-7 rounded-full rounded-bl-none border-[3px] border-white bg-brand shadow-[0_6px_12px_-4px_rgb(15_17_21/0.6)] [rotate:-45deg] after:absolute after:inset-1.5 after:rounded-full after:bg-asphalt after:content-['']" />
+        </span>
       ) : null}
     </div>
   );

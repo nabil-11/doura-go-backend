@@ -163,12 +163,12 @@ export function PickPanel({
           Picking one at a time is what lets the sheet shrink out of the way. */}
       <div role="tablist" aria-label={title} className="grid grid-cols-2 gap-1 rounded-xl bg-muted p-1">
         <ModeTab selected={mode === "search"} onClick={() => onMode("search")}>
-          <SearchIcon className="size-4" aria-hidden="true" />
-          {t.searchPlaceholder}
+          <SearchIcon className="size-4 shrink-0" aria-hidden="true" />
+          {t.tabSearch}
         </ModeTab>
         <ModeTab selected={mode === "map"} onClick={() => onMode("map")}>
-          <MapIcon className="size-4" aria-hidden="true" />
-          {t.pinOnMap}
+          <MapIcon className="size-4 shrink-0" aria-hidden="true" />
+          {t.tabMap}
         </ModeTab>
       </div>
 
@@ -228,29 +228,55 @@ export function PickPanel({
         {!showRecents && !asking ? <p className="px-1 py-3 text-sm text-muted-foreground">{t.searchHint}</p> : null}
       </div>
 
-      <div className={cn("rounded-xl border bg-muted/40 p-3", mode === "search" && "hidden lg:block")}>
-        <p className="flex items-start gap-2 text-sm" aria-live="polite">
-          <MapPinIcon className="mt-0.5 size-4 shrink-0 text-brand-deep" aria-hidden="true" />
-          <span className="min-w-0">
+      {/* No card on a phone: the sheet is already the container, and a bordered
+          box inside it is a box in a box. Beside the map on a desktop it needs
+          the frame, because there it sits among other things. */}
+      <div
+        className={cn(
+          mode === "search" && "hidden lg:block",
+          "lg:rounded-xl lg:border lg:bg-muted/40 lg:p-3",
+        )}
+      >
+        <div className="flex items-start gap-3" aria-live="polite">
+          <MapPinIcon className="mt-0.5 size-5 shrink-0 text-brand-deep" aria-hidden="true" />
+          <div className="min-w-0 flex-1">
+            {/* The address is the decision being made, so it is the biggest
+                thing here — not a caption above a button. */}
             {naming ? (
-              <span className="inline-flex items-center gap-2 text-muted-foreground">
-                <Spinner className="size-3.5" aria-hidden="true" />
+              <span className="flex items-center gap-2 text-base font-semibold text-muted-foreground">
+                <Spinner className="size-4" aria-hidden="true" />
                 {t.locating}
               </span>
             ) : (
-              <span className="font-medium">{pinLabel}</span>
+              <p className="truncate text-base leading-snug font-semibold">{pinLabel}</p>
             )}
-            <span className="mt-0.5 block text-xs text-muted-foreground">{t.movePin}</span>
-          </span>
-        </p>
-        <div className="mt-3 flex flex-col gap-2 sm:flex-row">
-          <Button type="button" onClick={() => void confirmPin()} disabled={!pin} className="h-11 flex-1 font-semibold">
+            <p className="mt-1 text-xs text-muted-foreground">{t.movePin}</p>
+          </div>
+        </div>
+
+        <div className="mt-4 flex gap-2">
+          <Button
+            type="button"
+            onClick={() => void confirmPin()}
+            disabled={!pin}
+            className="h-12 flex-1 text-base font-semibold"
+          >
             <CheckIcon aria-hidden="true" />
             {t.confirmPoint}
           </Button>
-          <Button type="button" variant="outline" onClick={onLocate} disabled={locating} className="h-11">
+          {/* Icon only: one primary action reads as primary, and a second
+              full-width button beside it would not. */}
+          <Button
+            type="button"
+            variant="outline"
+            size="icon"
+            onClick={onLocate}
+            disabled={locating}
+            aria-label={t.useMyLocation}
+            title={t.useMyLocation}
+            className="size-12 shrink-0"
+          >
             {locating ? <Spinner aria-hidden="true" /> : <CrosshairIcon aria-hidden="true" />}
-            {t.useMyLocation}
           </Button>
         </div>
       </div>

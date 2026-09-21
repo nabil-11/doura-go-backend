@@ -407,6 +407,8 @@ const en = {
       dropoffPlaceholder: "Where to?",
       useMyLocation: "Use my location",
       pinOnMap: "Set on the map",
+      tabSearch: "Search",
+      tabMap: "Map",
       setPickup: "Set the pickup point",
       setDropoff: "Set the destination",
       movePin: "Drag the map to move the pin",
